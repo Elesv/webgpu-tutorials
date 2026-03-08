@@ -5,6 +5,9 @@ interface Vertex {
 }
 
 class Renderer {
+    static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
+    static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+
     static async create() {
         const canvas = <HTMLCanvasElement | null>document.querySelector("canvas");
         if(!canvas) {
@@ -40,33 +43,33 @@ class Renderer {
         return new Renderer(context, device, vertexBuffer, pipeline);
     }
 
-    static async loadVertices(filename: string, device: GPUDevice): Promise<GPUBuffer> {
+    private static async loadVertices(filename: string, device: GPUDevice): Promise<GPUBuffer> {
         const response = await fetch(filename);
         const vertices: Vertex[] = await response.json();
         const vertexBuffer = device.createBuffer({
-            size: vertices.length * 3 * Float32Array.BYTES_PER_ELEMENT,
+            size: vertices.length * Renderer.SIZE_OF_VERTEX,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
         for(let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * 3 + 0] = vertices[i].x;
-            vertexBufferPtr[i * 3 + 1] = vertices[i].y;
-            vertexBufferPtr[i * 3 + 2] = vertices[i].z;
+            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 0] = vertices[i].x;
+            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 1] = vertices[i].y;
+            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
         }
 
         vertexBuffer.unmap();
         return vertexBuffer;
     }
 
-    static async createShaderModule(filename: string, device: GPUDevice): Promise<GPUShaderModule> {
+    private static async createShaderModule(filename: string, device: GPUDevice): Promise<GPUShaderModule> {
         const file = await fetch(filename);
         const code = await file.text();
         return device.createShaderModule({ code: code });
     }
 
-    static createPipeline(
+    private static createPipeline(
         shaderModule: GPUShaderModule,
         textureFormat: GPUTextureFormat,
         device: GPUDevice): GPURenderPipeline {
@@ -76,7 +79,7 @@ class Renderer {
                 module: shaderModule,
                 entryPoint: "vertexMain",
                 buffers: [{
-                    arrayStride: 12,
+                    arrayStride: Renderer.SIZE_OF_VERTEX,
                     stepMode: "vertex",
                     attributes: [
                         {
@@ -97,12 +100,12 @@ class Renderer {
         });
     }
 
-    context: GPUCanvasContext;
-    device: GPUDevice;
-    vertexBuffer: GPUBuffer;
-    pipeline: GPURenderPipeline;
+    private context: GPUCanvasContext;
+    private device: GPUDevice;
+    private vertexBuffer: GPUBuffer;
+    private pipeline: GPURenderPipeline;
 
-    constructor(
+    private constructor(
         context: GPUCanvasContext,
         device: GPUDevice,
         vertexBuffer: GPUBuffer,
@@ -114,7 +117,7 @@ class Renderer {
         this.pipeline = pipeline;
     }
 
-    createCommandBuffer(): GPUCommandBuffer {
+    private createCommandBuffer(): GPUCommandBuffer {
         const commandEncoder = this.device.createCommandEncoder();
         const texture = this.context.getCurrentTexture();
         const view = texture.createView();
@@ -131,7 +134,7 @@ class Renderer {
         
         renderPass.setVertexBuffer(0, this.vertexBuffer);
         renderPass.setPipeline(this.pipeline);
-        renderPass.draw(this.vertexBuffer.size / 12);
+        renderPass.draw(this.vertexBuffer.size / Renderer.SIZE_OF_VERTEX);
         renderPass.end();
 
         return commandEncoder.finish();
