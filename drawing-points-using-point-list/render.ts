@@ -1,7 +1,7 @@
 interface Vertex {
-  x: number;
-  y: number;
-  z: number;
+    x: number;
+    y: number;
+    z: number;
 }
 
 class Renderer {
@@ -10,13 +10,13 @@ class Renderer {
 
     static async create() {
         const canvas = <HTMLCanvasElement | null>document.querySelector("canvas");
-        if(!canvas) {
+        if (!canvas) {
             throw new Error("The canvas hasn't been found.");
         }
 
-        if(!navigator.gpu) {
+        if (!navigator.gpu) {
             throw new Error("WebGPU is not supported.");
-        } 
+        }
 
         const context = canvas.getContext('webgpu');
         if (!context) {
@@ -24,7 +24,7 @@ class Renderer {
         }
 
         const adapter = await navigator.gpu.requestAdapter();
-        if(!adapter) {
+        if (!adapter) {
             throw new Error("Failed to request GPU adapter.")
         }
 
@@ -35,7 +35,7 @@ class Renderer {
             device: device,
             format: textureFormat
         });
-        
+
         const vertexBuffer = await Renderer.loadVertices("points.json", device);
         const shaderModule = await Renderer.createShaderModule("shaders.wgsl", device);
         const pipeline = Renderer.createPipeline(shaderModule, textureFormat, device);
@@ -53,7 +53,7 @@ class Renderer {
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
-        for(let i = 0; i < vertices.length; ++i) {
+        for (let i = 0; i < vertices.length; ++i) {
             vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 0] = vertices[i].x;
             vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 1] = vertices[i].y;
             vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
@@ -75,21 +75,23 @@ class Renderer {
         device: GPUDevice): GPURenderPipeline {
 
         const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [] });
+        const vertexBufferLayout: GPUVertexBufferLayout = {
+            arrayStride: Renderer.SIZE_OF_VERTEX,
+            stepMode: "vertex",
+            attributes: [
+                {
+                    shaderLocation: 0,
+                    offset: 0,
+                    format: "float32x3"
+                }
+            ]
+        };
+        
         return device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
                 entryPoint: "vertexMain",
-                buffers: [{
-                    arrayStride: Renderer.SIZE_OF_VERTEX,
-                    stepMode: "vertex",
-                    attributes: [
-                        {
-                            shaderLocation: 0,
-                            offset: 0,
-                            format: "float32x3"
-                        }
-                    ]
-                }]
+                buffers: [vertexBufferLayout]
             },
             fragment: {
                 module: shaderModule,
@@ -132,7 +134,7 @@ class Renderer {
                 }
             ]
         });
-        
+
         renderPass.setVertexBuffer(0, this.vertexBuffer);
         renderPass.setPipeline(this.pipeline);
         renderPass.draw(this.vertexBuffer.size / Renderer.SIZE_OF_VERTEX);
