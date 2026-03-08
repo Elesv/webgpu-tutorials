@@ -5,8 +5,8 @@ interface Vertex {
 }
 
 class Renderer {
-    static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
-    static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
+    private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     static async create() {
         const canvas = <HTMLCanvasElement | null>document.querySelector("canvas");
@@ -74,6 +74,7 @@ class Renderer {
         textureFormat: GPUTextureFormat,
         device: GPUDevice): GPURenderPipeline {
 
+        const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [] });
         return device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
@@ -96,7 +97,7 @@ class Renderer {
                 targets: [{ format: textureFormat }],
             },
             primitive: { topology: "point-list" },
-            layout: "auto",
+            layout: pipelineLayout,
         });
     }
 
