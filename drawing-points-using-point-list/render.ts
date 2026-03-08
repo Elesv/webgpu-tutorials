@@ -5,12 +5,7 @@ interface Vertex {
 }
 
 class Renderer {
-    context!: GPUCanvasContext;
-    device!: GPUDevice;
-    vertexBuffer!: GPUBuffer;
-    pipeline!: GPURenderPipeline;
-
-    async init() {
+    static async create() {
         const canvas = <HTMLCanvasElement | null>document.querySelector("canvas");
         if(!canvas) {
             throw new Error("The canvas hasn't been found.");
@@ -24,25 +19,59 @@ class Renderer {
         if (!context) {
             throw new Error("Failed to acquire WebGPU context.");
         }
-        this.context = context;
 
         const adapter = await navigator.gpu.requestAdapter();
         if(!adapter) {
             throw new Error("Failed to request GPU adapter.")
         }
 
-        this.device = await adapter.requestDevice();
+        const device = await adapter.requestDevice();
         const textureFormat = navigator.gpu.getPreferredCanvasFormat();
 
-        this.context.configure({
-            device: this.device,
+        context.configure({
+            device: device,
             format: textureFormat
         });
         
-        await this.loadVertices("points.json");
+        const vertexBuffer = await Renderer.loadVertices("points.json", device);
+        const shaderModule = await Renderer.createShaderModule("shaders.wgsl", device);
+        const pipeline = Renderer.createPipeline(shaderModule, textureFormat, device);
 
-        const shaderModule = await this.createShaderModule("shaders.wgsl");
-        this.pipeline = this.device.createRenderPipeline({
+        return new Renderer(context, device, vertexBuffer, pipeline);
+    }
+
+    static async loadVertices(filename: string, device: GPUDevice): Promise<GPUBuffer> {
+        const response = await fetch(filename);
+        const vertices: Vertex[] = await response.json();
+        const vertexBuffer = device.createBuffer({
+            size: vertices.length * 3 * Float32Array.BYTES_PER_ELEMENT,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
+        });
+
+        const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
+        for(let i = 0; i < vertices.length; ++i) {
+            vertexBufferPtr[i * 3 + 0] = vertices[i].x;
+            vertexBufferPtr[i * 3 + 1] = vertices[i].y;
+            vertexBufferPtr[i * 3 + 2] = vertices[i].z;
+        }
+
+        vertexBuffer.unmap();
+        return vertexBuffer;
+    }
+
+    static async createShaderModule(filename: string, device: GPUDevice): Promise<GPUShaderModule> {
+        const file = await fetch(filename);
+        const code = await file.text();
+        return device.createShaderModule({ code: code });
+    }
+
+    static createPipeline(
+        shaderModule: GPUShaderModule,
+        textureFormat: GPUTextureFormat,
+        device: GPUDevice): GPURenderPipeline {
+
+        return device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
                 entryPoint: "vertexMain",
@@ -66,41 +95,30 @@ class Renderer {
             primitive: { topology: "point-list" },
             layout: "auto",
         });
-
-        this.createCommandBuffer();
-        this.render();
     }
 
-    async loadVertices(filename: string) {
-        const response = await fetch(filename);
-        const vertices: Vertex[] = await response.json();
+    context: GPUCanvasContext;
+    device: GPUDevice;
+    vertexBuffer: GPUBuffer;
+    pipeline: GPURenderPipeline;
 
-        this.vertexBuffer = this.device.createBuffer({
-            size: vertices.length * 3 * Float32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-            mappedAtCreation: true
-        });
+    constructor(
+        context: GPUCanvasContext,
+        device: GPUDevice,
+        vertexBuffer: GPUBuffer,
+        pipeline: GPURenderPipeline) {
 
-        const vertexBufferPtr = new Float32Array(this.vertexBuffer.getMappedRange());
-        for(let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * 3 + 0] = vertices[i].x;
-            vertexBufferPtr[i * 3 + 1] = vertices[i].y;
-            vertexBufferPtr[i * 3 + 2] = vertices[i].z;
-        }
-        this.vertexBuffer.unmap();
-    }
-
-    async createShaderModule(filename: string): Promise<GPUShaderModule> {
-        const file = await fetch(filename);
-        const code = await file.text();
-        return this.device.createShaderModule({ code: code });
+        this.context = context;
+        this.device = device;
+        this.vertexBuffer = vertexBuffer;
+        this.pipeline = pipeline;
     }
 
     createCommandBuffer(): GPUCommandBuffer {
         const commandEncoder = this.device.createCommandEncoder();
         const texture = this.context.getCurrentTexture();
         const view = texture.createView();
-        const pass = commandEncoder.beginRenderPass({
+        const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [
                 {
                     view: view,
@@ -111,10 +129,10 @@ class Renderer {
             ]
         });
         
-        pass.setVertexBuffer(0, this.vertexBuffer);
-        pass.setPipeline(this.pipeline);
-        pass.draw(this.vertexBuffer.size / 12);
-        pass.end();
+        renderPass.setVertexBuffer(0, this.vertexBuffer);
+        renderPass.setPipeline(this.pipeline);
+        renderPass.draw(this.vertexBuffer.size / 12);
+        renderPass.end();
 
         return commandEncoder.finish();
     }
@@ -125,5 +143,5 @@ class Renderer {
     }
 }
 
-const renderer = new Renderer();
-renderer.init();
+const renderer = await Renderer.create();
+renderer.render();
