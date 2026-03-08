@@ -1,3 +1,9 @@
+interface Vertex {
+  x: number;
+  y: number;
+  z: number;
+}
+
 class Renderer {
     context!: GPUCanvasContext;
     device!: GPUDevice;
@@ -33,7 +39,7 @@ class Renderer {
             format: textureFormat
         });
         
-        await this.loadVertices("points.vertices");
+        await this.loadVertices("points.json");
 
         const shaderModule = await this.createShaderModule("shaders.wgsl");
         this.pipeline = this.device.createRenderPipeline({
@@ -66,19 +72,20 @@ class Renderer {
     }
 
     async loadVertices(filename: string) {
-        const file = await fetch(filename);
-        const text = await file.text();
-        const coords = text.split(',').map(item => Number.parseFloat(item.trim()));
+        const response = await fetch(filename);
+        const vertices: Vertex[] = await response.json();
 
         this.vertexBuffer = this.device.createBuffer({
-            size: coords.length * 4,
+            size: vertices.length * 3 * Float32Array.BYTES_PER_ELEMENT,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true
         });
 
         const vertexBufferPtr = new Float32Array(this.vertexBuffer.getMappedRange());
-        for(let i = 0; i < coords.length; ++i) {
-            vertexBufferPtr[i] = coords[i];
+        for(let i = 0; i < vertices.length; ++i) {
+            vertexBufferPtr[i * 3 + 0] = vertices[i].x;
+            vertexBufferPtr[i * 3 + 1] = vertices[i].y;
+            vertexBufferPtr[i * 3 + 2] = vertices[i].z;
         }
         this.vertexBuffer.unmap();
     }
