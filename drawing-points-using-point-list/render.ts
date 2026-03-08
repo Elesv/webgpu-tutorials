@@ -146,5 +146,4 @@ class Renderer {
     }
 }
 
-const renderer = await Renderer.create();
-renderer.render();
+(await Renderer.create()).render();
