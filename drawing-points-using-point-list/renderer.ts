@@ -8,8 +8,8 @@ export class Renderer {
     private static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
     private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
-    static async create() {
-        const [context, device, textureFormat] = await Renderer.init();
+    static async create(canvas: HTMLCanvasElement, onDeviceLost: (info: GPUDeviceLostInfo) => void) {
+        const [context, device, textureFormat] = await Renderer.init(canvas, onDeviceLost);
         const vertexBuffer = await Renderer.loadVertices("points.json", device);
         const shaderModule = await Renderer.createShaderModule("shaders.wgsl", device);
         const pipeline = Renderer.createPipeline(shaderModule, textureFormat, device);
@@ -17,11 +17,8 @@ export class Renderer {
         return new Renderer(context, device, vertexBuffer, pipeline);
     }
 
-    private static async init(): Promise<[GPUCanvasContext, GPUDevice, GPUTextureFormat]> {
-        const canvas = <HTMLCanvasElement | null>document.querySelector("canvas");
-        if (!canvas) {
-            throw new Error("The canvas hasn't been found.");
-        }
+    private static async init(canvas: HTMLCanvasElement, onDeviceLost: (info: GPUDeviceLostInfo) => void)
+        : Promise<[GPUCanvasContext, GPUDevice, GPUTextureFormat]> {
 
         if (!navigator.gpu) {
             throw new Error("WebGPU is not supported.");
@@ -38,8 +35,13 @@ export class Renderer {
         }
 
         const device = await adapter.requestDevice();
-        const textureFormat = navigator.gpu.getPreferredCanvasFormat();
+        device.lost.then((info) => {
+            if (info.reason !== 'destroyed') {
+                onDeviceLost(info);
+            }
+        });
 
+        const textureFormat = navigator.gpu.getPreferredCanvasFormat();
         context.configure({
             device: device,
             format: textureFormat
@@ -150,8 +152,5 @@ export class Renderer {
 
     render() {
         this.device.queue.submit([this.createCommandBuffer()]);
-        requestAnimationFrame(() => this.render());
     }
 }
-
-(await Renderer.create()).render();
