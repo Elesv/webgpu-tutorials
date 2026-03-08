@@ -9,6 +9,15 @@ class Renderer {
     private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     static async create() {
+        const [context, device, textureFormat] = await Renderer.init();
+        const vertexBuffer = await Renderer.loadVertices("points.json", device);
+        const shaderModule = await Renderer.createShaderModule("shaders.wgsl", device);
+        const pipeline = Renderer.createPipeline(shaderModule, textureFormat, device);
+
+        return new Renderer(context, device, vertexBuffer, pipeline);
+    }
+
+    private static async init(): Promise<[GPUCanvasContext, GPUDevice, GPUTextureFormat]> {
         const canvas = <HTMLCanvasElement | null>document.querySelector("canvas");
         if (!canvas) {
             throw new Error("The canvas hasn't been found.");
@@ -36,11 +45,7 @@ class Renderer {
             format: textureFormat
         });
 
-        const vertexBuffer = await Renderer.loadVertices("points.json", device);
-        const shaderModule = await Renderer.createShaderModule("shaders.wgsl", device);
-        const pipeline = Renderer.createPipeline(shaderModule, textureFormat, device);
-
-        return new Renderer(context, device, vertexBuffer, pipeline);
+        return [context, device, textureFormat];
     }
 
     private static async loadVertices(filename: string, device: GPUDevice): Promise<GPUBuffer> {
@@ -86,7 +91,7 @@ class Renderer {
                 }
             ]
         };
-        
+
         return device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
