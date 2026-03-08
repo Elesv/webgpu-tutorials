@@ -4,7 +4,7 @@ interface Vertex {
     z: number;
 }
 
-class Renderer {
+export class Renderer {
     private static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
     private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
