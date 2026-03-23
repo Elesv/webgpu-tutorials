@@ -1,8 +1,8 @@
 import { App } from './app.js';
 
-async function bootstrap() {
+async function main() {
     const app = new App();
     await app.Run();
 }
 
-bootstrap();
+main();
