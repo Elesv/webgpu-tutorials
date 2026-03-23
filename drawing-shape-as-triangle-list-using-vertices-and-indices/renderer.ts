@@ -58,10 +58,6 @@ export class Renderer {
         const shaderModule = await this.createShaderModule(this.shaderCode);
         this.pipeline = this.createPipeline(shaderModule, textureFormat);
 
-this.canvas.onclick = () => {
-            this.device.destroy();
-        }
-
         this.onInitSuccessful();
     }
 
