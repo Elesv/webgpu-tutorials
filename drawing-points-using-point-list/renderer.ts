@@ -1,31 +1,30 @@
-interface Vertex {
-    x: number;
-    y: number;
-    z: number;
-}
+import { AssetLoader } from './asset-loader.js';
+import { Geometry } from './geometry.js';
+import { Vertex } from './vertex.js';
 
 export class Renderer {
     private static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
     private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
-    static async create(canvas: HTMLCanvasElement, onDeviceLost: (info: GPUDeviceLostInfo) => void) {
-        const [context, device, textureFormat] = await Renderer.init(canvas, onDeviceLost);
-        const vertexBuffer = await Renderer.loadVertices("points.json", device);
-        const shaderModule = await Renderer.createShaderModule("shaders.wgsl", device);
-        const pipeline = Renderer.createPipeline(shaderModule, textureFormat, device);
+    static async create(
+        canvas: HTMLCanvasElement,
+        onInitSuccessful: () => void,
+        onDeviceLost: (info: GPUDeviceLostInfo) => void) {
 
-        return new Renderer(context, device, vertexBuffer, pipeline);
+        const shaderCode = await AssetLoader.loadShader("shaders.wgsl");
+        const renderer = new Renderer(canvas, shaderCode, onInitSuccessful, onDeviceLost);
+
+        await renderer.init();
+        return renderer;
     }
 
-    private static async init(canvas: HTMLCanvasElement, onDeviceLost: (info: GPUDeviceLostInfo) => void)
-        : Promise<[GPUCanvasContext, GPUDevice, GPUTextureFormat]> {
-
+    private async init() {
         if (!navigator.gpu) {
             throw new Error("WebGPU is not supported.");
         }
 
-        const context = canvas.getContext('webgpu');
-        if (!context) {
+        this.context = this.canvas.getContext('webgpu');
+        if (!this.context) {
             throw new Error("Failed to acquire WebGPU context.");
         }
 
@@ -34,26 +33,51 @@ export class Renderer {
             throw new Error("Failed to request GPU adapter.")
         }
 
-        const device = await adapter.requestDevice();
-        device.lost.then((info) => {
-            if (info.reason !== 'destroyed') {
-                onDeviceLost(info);
-            }
+        this.device = await adapter.requestDevice();
+        this.device.lost.then((info) => {
+            this.onDeviceLost(info);
+            this.init();
         });
 
         const textureFormat = navigator.gpu.getPreferredCanvasFormat();
-        context.configure({
-            device: device,
+        this.context.configure({
+            device: this.device,
             format: textureFormat
         });
 
-        return [context, device, textureFormat];
+        const shaderModule = this.createShaderModule(this.shaderCode);
+        this.pipeline = this.createPipeline(shaderModule, textureFormat);
+
+        this.canvas.onclick = () => {
+            this.device.destroy();
+        }
+        this.onInitSuccessful();
     }
 
-    private static async loadVertices(filename: string, device: GPUDevice): Promise<GPUBuffer> {
-        const response = await fetch(filename);
-        const vertices: Vertex[] = await response.json();
-        const vertexBuffer = device.createBuffer({
+
+    private onInitSuccessful: () => void;
+    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
+
+    private shaderCode: string;
+    private canvas: HTMLCanvasElement;
+    private context: GPUCanvasContext;
+    private device: GPUDevice;
+    private pipeline: GPURenderPipeline;
+
+    private constructor(
+        canvas: HTMLCanvasElement,
+        shaderCode: string,
+        onInitSuccessful: () => void,
+        onDeviceLost: (info: GPUDeviceLostInfo) => void) {
+
+        this.canvas = canvas;
+        this.shaderCode = shaderCode;
+        this.onInitSuccessful = onInitSuccessful;
+        this.onDeviceLost = onDeviceLost;
+    }
+
+    private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
+        const vertexBuffer = this.device.createBuffer({
             size: vertices.length * Renderer.SIZE_OF_VERTEX,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true
@@ -70,18 +94,12 @@ export class Renderer {
         return vertexBuffer;
     }
 
-    private static async createShaderModule(filename: string, device: GPUDevice): Promise<GPUShaderModule> {
-        const file = await fetch(filename);
-        const code = await file.text();
-        return device.createShaderModule({ code: code });
+    private createShaderModule(code: string): GPUShaderModule {
+        return this.device.createShaderModule({ code: code });
     }
 
-    private static createPipeline(
-        shaderModule: GPUShaderModule,
-        textureFormat: GPUTextureFormat,
-        device: GPUDevice): GPURenderPipeline {
-
-        const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [] });
+    private createPipeline(shaderModule: GPUShaderModule, textureFormat: GPUTextureFormat): GPURenderPipeline {
+        const pipelineLayout = this.device.createPipelineLayout({ bindGroupLayouts: [] });
         const vertexBufferLayout: GPUVertexBufferLayout = {
             arrayStride: Renderer.SIZE_OF_VERTEX,
             stepMode: "vertex",
@@ -94,7 +112,7 @@ export class Renderer {
             ]
         };
 
-        return device.createRenderPipeline({
+        return this.device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
                 entryPoint: "vertexMain",
@@ -110,24 +128,7 @@ export class Renderer {
         });
     }
 
-    private context: GPUCanvasContext;
-    private device: GPUDevice;
-    private vertexBuffer: GPUBuffer;
-    private pipeline: GPURenderPipeline;
-
-    private constructor(
-        context: GPUCanvasContext,
-        device: GPUDevice,
-        vertexBuffer: GPUBuffer,
-        pipeline: GPURenderPipeline) {
-
-        this.context = context;
-        this.device = device;
-        this.vertexBuffer = vertexBuffer;
-        this.pipeline = pipeline;
-    }
-
-    private createCommandBuffer(): GPUCommandBuffer {
+    private createCommandBuffer(vertexBuffer: GPUBuffer): GPUCommandBuffer {
         const commandEncoder = this.device.createCommandEncoder();
         const texture = this.context.getCurrentTexture();
         const view = texture.createView();
@@ -142,15 +143,22 @@ export class Renderer {
             ]
         });
 
-        renderPass.setVertexBuffer(0, this.vertexBuffer);
+        renderPass.setVertexBuffer(0, vertexBuffer);
         renderPass.setPipeline(this.pipeline);
-        renderPass.draw(this.vertexBuffer.size / Renderer.SIZE_OF_VERTEX);
+        renderPass.draw(vertexBuffer.size / Renderer.SIZE_OF_VERTEX);
         renderPass.end();
 
         return commandEncoder.finish();
     }
 
-    render() {
-        this.device.queue.submit([this.createCommandBuffer()]);
+    uploadGeometry(geometry: Geometry) {
+        geometry.vertexBuffer = this.createVertexBuffer(geometry.vertices);
+    }
+
+    renderGeometry(geometry: Geometry) {
+        if(geometry.vertexBuffer === null) {
+            this.uploadGeometry(geometry);
+        }
+        this.device.queue.submit([this.createCommandBuffer(geometry.vertexBuffer)]);
     }
 }
