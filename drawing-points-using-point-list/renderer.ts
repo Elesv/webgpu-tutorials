@@ -34,9 +34,13 @@ export class Renderer {
         }
 
         this.device = await adapter.requestDevice();
-        this.device.lost.then((info) => {
+        this.device.lost.then(async (info) => {
             this.onDeviceLost(info);
-            this.init();
+            try {
+                await this.init();
+            } catch (error) {
+                console.error("Failed to reinitialize the renderer after device loss:", error);
+            }
         });
 
         const textureFormat = navigator.gpu.getPreferredCanvasFormat();

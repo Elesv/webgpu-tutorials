@@ -5,4 +5,4 @@ async function main() {
     await app.Run();
 }
 
-main();
+await main();
