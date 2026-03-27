@@ -44,14 +44,17 @@ export class Renderer {
             }
         });
 
-        const textureFormat = navigator.gpu.getPreferredCanvasFormat();
+        const observer = new ResizeObserver(() => this.resize());
+        observer.observe(this.canvas);
+
+        this.textureFormat = navigator.gpu.getPreferredCanvasFormat();
         this.context.configure({
             device: this.device,
-            format: textureFormat
+            format: this.textureFormat
         });
 
         const shaderModule = await this.createShaderModule(this.shaderCode);
-        this.pipeline = this.createPipeline(shaderModule, textureFormat);
+        this.pipeline = this.createPipeline(shaderModule, this.textureFormat);
 
         this.onInitSuccessful();
     }
@@ -63,6 +66,7 @@ export class Renderer {
     private canvas!: HTMLCanvasElement;
     private context!: GPUCanvasContext;
     private device!: GPUDevice;
+    private textureFormat!: GPUTextureFormat;
     private pipeline!: GPURenderPipeline;
 
     private constructor(
@@ -75,6 +79,24 @@ export class Renderer {
         this.shaderCode = shaderCode;
         this.onInitSuccessful = onInitSuccessful;
         this.onDeviceLost = onDeviceLost;
+    }
+
+    resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const width = Math.floor(this.canvas.clientWidth * dpr);
+        const height = Math.floor(this.canvas.clientHeight * dpr);
+
+        if (this.canvas.width === width && this.canvas.height === height) {
+            return;
+        }
+
+        this.canvas.width = width;
+        this.canvas.height = height;
+
+        this.context.configure({
+            device: this.device,
+            format: this.textureFormat
+        });
     }
 
     private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
