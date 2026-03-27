@@ -7,6 +7,9 @@ export class Renderer {
     private static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
     private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
+    private static NUMBER_OF_INDICES_PER_FACE = 3;
+    private static SIZE_OF_FACE = Renderer.NUMBER_OF_INDICES_PER_FACE * Int16Array.BYTES_PER_ELEMENT;
+
     static async create(
         canvas: HTMLCanvasElement,
         onInitSuccessful: () => void,
@@ -101,16 +104,16 @@ export class Renderer {
 
     private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
-            size: vertices.length * 3 * 4,
+            size: vertices.length * Renderer.SIZE_OF_VERTEX,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
         for (let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * 3 + 0] = vertices[i].x;
-            vertexBufferPtr[i * 3 + 1] = vertices[i].y;
-            vertexBufferPtr[i * 3 + 2] = vertices[i].z;
+            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 0] = vertices[i].x;
+            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 1] = vertices[i].y;
+            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
         }
 
         vertexBuffer.unmap();
@@ -119,7 +122,7 @@ export class Renderer {
 
     private createIndexBuffer(faces: Face[]): GPUBuffer {
         const indexBuffer = this.device.createBuffer({
-            size: faces.length * 3 * 2,
+            size: faces.length * Renderer.SIZE_OF_FACE,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true
         });
@@ -127,9 +130,9 @@ export class Renderer {
         const indexBufferPtr = new Int16Array(indexBuffer.getMappedRange());
         for (let i = 0; i < faces.length; ++i) {
             const face = faces[i];
-            indexBufferPtr[i * 3 + 0] = face.a;
-            indexBufferPtr[i * 3 + 1] = face.b;
-            indexBufferPtr[i * 3 + 2] = face.c;
+            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 0] = face.a;
+            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 1] = face.b;
+            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 2] = face.c;
         }
 
         indexBuffer.unmap();
@@ -188,7 +191,7 @@ export class Renderer {
         pass.setVertexBuffer(0, vertexBuffer);
         pass.setIndexBuffer(indexBuffer, "uint16");
         pass.setPipeline(this.pipeline);
-        pass.drawIndexed(indexBuffer.size / 2);
+        pass.drawIndexed(indexBuffer.size / Int16Array.BYTES_PER_ELEMENT);
         pass.end();
 
         return commandEncoder.finish();
