@@ -4,10 +4,10 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0)
-var mySampler: sampler;
+var diffuseSampler: sampler;
 
 @group(0) @binding(1)
-var myTexture: texture_2d<f32>;
+var diffuseTexture: texture_2d<f32>;
 
 @vertex
 fn vertexMain(
@@ -22,5 +22,5 @@ fn vertexMain(
 
 @fragment
 fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(myTexture, mySampler, in.uv);
+    return textureSample(diffuseTexture, diffuseSampler, in.uv);
 }
