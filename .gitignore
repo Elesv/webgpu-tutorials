@@ -3,6 +3,8 @@ node_modules/
 
 # compiled output (JS)
 *.js
+!scripts/
+!scripts/**/*.js
 *.js.map
 dist/
 
