@@ -7,9 +7,8 @@ export class App {
     private renderer!: Renderer;
     private mesh!: Mesh;
 
-    async Run() {
+    async Run(canvas: HTMLCanvasElement) {
         this.mesh = await AssetLoader.loadMesh("assets/models/vertices.json");
-        const canvas = <HTMLCanvasElement>document.querySelector("canvas");
 
         try {
             this.renderer = await Renderer.create(
