@@ -29,7 +29,11 @@ export class App {
     }
 
     private frame = (time: number) => {
-        this.renderer.renderMesh(this.mesh);
+        try {
+            this.renderer.renderMesh(this.mesh);
+        } catch (error) {
+            console.error("Failed to render mesh:", error);
+        }
         this.frameRequestId = requestAnimationFrame(this.frame);
     };
 
