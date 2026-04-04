@@ -29,7 +29,11 @@ export class App {
     }
 
     private frame = (time: number) => {
-        this.renderer.renderGeometry(this.geometry);
+        try {
+            this.renderer.renderGeometry(this.geometry);
+        } catch (error) {
+            console.error("Failed to render geometry:", error);
+        }
         this.frameRequestId = requestAnimationFrame(this.frame);
     };
 
