@@ -8,7 +8,7 @@ export class App {
     private geometry!: Geometry;
 
     async Run() {
-        this.geometry = await AssetLoader.loadGeometry("points.json");
+        this.geometry = await AssetLoader.loadGeometry("assets/models/points.json");
         const canvas = <HTMLCanvasElement>document.querySelector("canvas");
 
         try {

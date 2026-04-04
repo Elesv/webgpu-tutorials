@@ -2,6 +2,14 @@
   "type": "module",
   "devDependencies": {
     "@webgpu/types": "^0.1.69",
+    "chokidar": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "cpy": "^13.2.1",
+    "cpy-cli": "^7.0.0",
     "typescript": "^5.9.3"
-  }
+  },
+"scripts": {
+  "build": "tsc && node scripts/copy-watch.js",
+  "dev": "npx concurrently \"tsc --watch\" \"node scripts/copy-watch.js\""
+}
 }

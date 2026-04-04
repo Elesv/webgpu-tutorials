@@ -4,6 +4,8 @@
     "module": "NodeNext",
     "types": ["@webgpu/types"],
     "moduleResolution": "NodeNext",
-    "lib": ["ES2024", "DOM", "DOM.Iterable"]
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "rootDir": "./src",
+    "outDir": "./dist"
   }
 }

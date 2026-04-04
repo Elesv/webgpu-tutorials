@@ -11,7 +11,7 @@ export class Renderer {
         onInitSuccessful: () => void,
         onDeviceLost: (info: GPUDeviceLostInfo) => void) {
 
-        const shaderCode = await AssetLoader.loadShader("shaders.wgsl");
+        const shaderCode = await AssetLoader.loadShader("shaders/shaders.wgsl");
         const renderer = new Renderer(canvas, shaderCode, onInitSuccessful, onDeviceLost);
 
         await renderer.init();
