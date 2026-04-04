@@ -16,7 +16,7 @@ export class Renderer {
         onInitSuccessful: () => void,
         onDeviceLost: (info: GPUDeviceLostInfo) => void) {
 
-        const shaderCode = await AssetLoader.loadShader("shaders.wgsl");
+        const shaderCode = await AssetLoader.loadShader("shaders/shaders.wgsl");
         const renderer = new Renderer(canvas, shaderCode, onInitSuccessful, onDeviceLost);
 
         await renderer.init();
@@ -28,10 +28,11 @@ export class Renderer {
             throw new Error("WebGPU is not supported.");
         }
 
-        this.context = this.canvas.getContext('webgpu');
-        if (!this.context) {
+        const context = this.canvas.getContext('webgpu');
+        if (!context) {
             throw new Error("Failed to acquire WebGPU context.");
         }
+        this.context = context;
 
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter) {
@@ -74,7 +75,7 @@ export class Renderer {
     private onDeviceLost: (info: GPUDeviceLostInfo) => void;
 
     private shaderCode: string;
-    private canvas!: HTMLCanvasElement;
+    private canvas: HTMLCanvasElement;
     private context!: GPUCanvasContext;
     private device!: GPUDevice;
     private textureFormat!: GPUTextureFormat;
