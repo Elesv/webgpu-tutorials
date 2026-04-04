@@ -4,6 +4,7 @@ node_modules/
 # compiled output (JS)
 *.js
 *.js.map
+dist/
 
 # TypeScript config cache
 *.tsbuildinfo
