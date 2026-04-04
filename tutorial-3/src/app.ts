@@ -8,7 +8,7 @@ export class App {
     private mesh!: Mesh;
 
     async Run() {
-        this.mesh = await AssetLoader.loadMesh("vertices.json");
+        this.mesh = await AssetLoader.loadMesh("assets/models/vertices.json");
         const canvas = <HTMLCanvasElement>document.querySelector("canvas");
 
         try {
