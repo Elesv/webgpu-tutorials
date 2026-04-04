@@ -4,7 +4,7 @@ node_modules/
 # compiled output (JS)
 *.js
 !scripts/
-!scripts/**/*.js
+!scripts/**
 *.js.map
 dist/
 
