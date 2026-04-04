@@ -8,7 +8,7 @@ export class App {
     private mesh!: Mesh;
 
     async Run() {
-        this.mesh = await AssetLoader.loadMesh("vertices.json");
+        this.mesh = await AssetLoader.loadMesh("assets/models/vertices.json");
         const canvas = <HTMLCanvasElement>document.querySelector("canvas");
 
         try {
@@ -29,7 +29,11 @@ export class App {
     }
 
     private frame = (time: number) => {
-        this.renderer.renderMesh(this.mesh);
+        try {
+            this.renderer.renderMesh(this.mesh);
+        } catch (error) {
+            console.error("Failed to render mesh:", error);
+        }
         this.frameRequestId = requestAnimationFrame(this.frame);
     };
 
