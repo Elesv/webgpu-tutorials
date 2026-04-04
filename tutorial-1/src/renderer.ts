@@ -23,10 +23,11 @@ export class Renderer {
             throw new Error("WebGPU is not supported.");
         }
 
-        this.context = this.canvas.getContext('webgpu');
-        if (!this.context) {
+        const context = this.canvas.getContext('webgpu');
+        if (!context) {
             throw new Error("Failed to acquire WebGPU context.");
         }
+        this.context = context;
 
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter) {
@@ -64,10 +65,10 @@ export class Renderer {
 
     private shaderCode: string;
     private canvas: HTMLCanvasElement;
-    private context: GPUCanvasContext;
-    private device: GPUDevice;
+    private context!: GPUCanvasContext;
+    private device!: GPUDevice;
     private textureFormat!: GPUTextureFormat;
-    private pipeline: GPURenderPipeline;
+    private pipeline!: GPURenderPipeline;
 
     private constructor(
         canvas: HTMLCanvasElement,
@@ -183,6 +184,6 @@ export class Renderer {
         if(geometry.vertexBuffer === null) {
             this.uploadGeometry(geometry);
         }
-        this.device.queue.submit([this.createCommandBuffer(geometry.vertexBuffer)]);
+        this.device.queue.submit([this.createCommandBuffer(geometry.vertexBuffer!)]);
     }
 }
