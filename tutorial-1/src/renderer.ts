@@ -83,7 +83,7 @@ export class Renderer {
         this.onDeviceLost = onDeviceLost;
     }
 
-    resize() {
+    private resize() {
         const dpr = window.devicePixelRatio || 1;
         const width = Math.floor(this.canvas.clientWidth * dpr);
         const height = Math.floor(this.canvas.clientHeight * dpr);
