@@ -118,11 +118,7 @@ export class Renderer {
     }
 
     private createUniformBuffer(): GPUBuffer {
-        const uniformBufferSize =
-            16 * 4 + // model
-            16 * 4 + // view
-            16 * 4; // projection
-
+        const uniformBufferSize = Matrix4.BYTE_SIZE * 3;
         const uniformBuffer = this.device.createBuffer({
             size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST

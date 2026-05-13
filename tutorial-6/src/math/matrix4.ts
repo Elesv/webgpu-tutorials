@@ -7,6 +7,10 @@ export class Matrix4 {
     m31: number; m32: number; m33: number; m34: number;
     m41: number; m42: number; m43: number; m44: number;
 
+    public static readonly NUM_ENTRIES = 16;
+    static readonly BYTE_SIZE =
+        Matrix4.NUM_ENTRIES * Float32Array.BYTES_PER_ELEMENT;
+
     constructor(
         m11 = 1, m12 = 0, m13 = 0, m14 = 0,
         m21 = 0, m22 = 1, m23 = 0, m24 = 0,

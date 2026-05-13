@@ -1,5 +1,6 @@
 import { Matrix4 } from "./math/matrix4.js";
 import { Quaternion } from "./math/quaternion.js";
+import { toDegrees, toRadians } from "./math/utils.js";
 import { Vector3 } from "./math/vector3.js";
 
 export class Camera {
@@ -27,10 +28,26 @@ export class Camera {
         return Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
     }
 
-    direction(): Vector3 {
+    getLocalX() {
+        return this.rotation.rotate(
+            Vector3.unitX()
+        ).normalize();
+    }
+
+    getLocalY() {
+        return this.rotation.rotate(
+            Vector3.unitY()
+        ).normalize();
+    }
+
+    getLocalZ() {
         return this.rotation.rotate(
             Vector3.unitZ()
         ).normalize();
+    }
+
+    direction(): Vector3 {
+        return this.getLocalZ();
     }
 
     move(distance: number) {
@@ -48,7 +65,36 @@ export class Camera {
     pitch(angle: number) {
         this.rotation = this.rotation.mul(
             Quaternion.angleAxis(angle, Vector3.unitX())
-        ).normalize()
+        ).normalize();
+
+        const localX = this.getLocalX();
+        const localZ = this.getLocalZ();
+
+        const qUpper = Quaternion.angleAxis(toRadians(5), localX);
+        const qLower = Quaternion.angleAxis(toRadians(175), localX);
+        
+        const upper = qUpper.rotate(Vector3.unitY());
+        const lower = qLower.rotate(Vector3.unitY());
+
+        const angleToUpper = localZ.signedAngleTo(upper, localX);
+        const angleToLower = localZ.signedAngleTo(lower, localX);
+
+        console.log(`angle to upper bound: ${toDegrees(angleToUpper)}`);
+        console.log(`angle to lower bound: ${toDegrees(angleToLower)}`);
+
+        if(Math.sign(angle) === 1) {
+            if(Math.sign(angleToLower) === -1) {
+                this.rotation = this.rotation.mul(
+                    Quaternion.angleAxis(angleToLower, localX)
+                ).normalize();
+            }
+        } else {
+            if(Math.sign(angleToUpper) === 1) {
+                this.rotation = this.rotation.mul(
+                    Quaternion.angleAxis(angleToUpper, localX)
+                ).normalize();
+            }
+        }
     }
 
     roll(angle: number) {

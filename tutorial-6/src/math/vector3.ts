@@ -73,6 +73,14 @@ export class Vector3 {
         return new Vector3(-this.x, -this.y, -this.z);
     }
 
+    angleTo(v: Vector3): number {
+        return Math.acos(Math.max(-1, Math.min(1, this.dot(v) / (this.length() * v.length()))));
+    }
+
+    signedAngleTo(v: Vector3, normal: Vector3): number {
+        return Math.atan2(normal.dot(this.cross(v)), this.dot(v));
+    }
+
     clone(): Vector3 {
         return new Vector3(this.x, this.y, this.z);
     }

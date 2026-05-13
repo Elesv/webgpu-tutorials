@@ -16,12 +16,15 @@ export class CameraController {
         this.canvas.addEventListener("mousedown", () => {
             this.canvas.requestPointerLock();
             window.addEventListener("keydown", (e) => {
-                if (e.key === "w") {
-                    this.camera.move(1.5);
-                }
-
-                if (e.key === "s") {
-                    this.camera.move(-1.5);
+                switch(e.key) {
+                    case "w": {
+                        this.camera.move(1.5);
+                        break;
+                    }
+                    case "s": {
+                        this.camera.move(-1.5);
+                        break;   
+                    }
                 }
             });
         });
