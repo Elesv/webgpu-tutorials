@@ -352,21 +352,18 @@ export class Renderer {
         }
 
         const world = mesh.world.toFloat32Array();
+        const view = camera.view().toFloat32Array();
+        
+        const combined = new Float32Array(Matrix4.NUM_ENTRIES * 2);
+        combined.set(world, 0);
+        combined.set(view, Matrix4.NUM_ENTRIES);
+
         this.device.queue.writeBuffer(
             this.uniformBuffer,
             0,
-            world.buffer,
-            world.byteOffset,
-            world.byteLength
-        );
-
-        const view = camera.view().toFloat32Array();
-        this.device.queue.writeBuffer(
-            this.uniformBuffer,
-            64,
-            view.buffer,
-            view.byteOffset,
-            view.byteLength
+            combined.buffer,
+            combined.byteOffset,
+            combined.byteLength
         );
 
         this.device.queue.submit(
