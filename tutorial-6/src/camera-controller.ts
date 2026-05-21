@@ -16,14 +16,20 @@ export class CameraController {
         this.canvas.addEventListener("mousedown", () => {
             this.canvas.requestPointerLock();
             window.addEventListener("keydown", (e) => {
-                switch(e.key) {
+                switch (e.key) {
                     case "w": {
                         this.camera.move(1.5);
                         break;
                     }
                     case "s": {
                         this.camera.move(-1.5);
-                        break;   
+                        break;
+                    }
+                    case "f": {
+                        this.canvas.requestFullscreen().catch(err => {
+                            console.error(`Failed to switch to fullscreen mode: ${err.message}`);
+                        });
+                        break;
                     }
                 }
             });
