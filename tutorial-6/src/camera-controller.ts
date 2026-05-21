@@ -1,6 +1,4 @@
 import { Camera } from "./camera.js";
-import { Quaternion } from "./math/quaternion.js";
-import { Vector3 } from "./math/vector3.js";
 
 export class CameraController {
     sensitivity = 0.002;

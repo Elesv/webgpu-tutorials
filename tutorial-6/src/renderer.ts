@@ -120,6 +120,21 @@ export class Renderer {
 
         this.depthTexture?.destroy();
         this.depthTexture = this.createDepthTexture();
+
+        const projection = Matrix4.perspectiveLH(
+            Math.PI / 4,
+            this.canvas.width / this.canvas.height,
+            0.1,
+            1000.0
+        ).toFloat32Array();
+
+        this.device.queue.writeBuffer(
+            this.uniformBuffer,
+            Matrix4.BYTE_SIZE * 2,
+            projection.buffer,
+            projection.byteOffset,
+            projection.byteLength
+        );
     }
 
     private createDepthTexture(): GPUTexture {
