@@ -67,12 +67,16 @@ export class Camera {
             Quaternion.angleAxis(angle, Vector3.unitX())
         ).normalize();
 
+        this.correctPitch(angle);
+    }
+
+    correctPitch(angle: number) {
         const localX = this.getLocalX();
         const localZ = this.getLocalZ();
 
         const qUpper = Quaternion.angleAxis(toRadians(5), localX);
         const qLower = Quaternion.angleAxis(toRadians(175), localX);
-        
+
         const upper = qUpper.rotate(Vector3.unitY());
         const lower = qLower.rotate(Vector3.unitY());
 
@@ -82,14 +86,14 @@ export class Camera {
         console.log(`angle to upper bound: ${toDegrees(angleToUpper)}`);
         console.log(`angle to lower bound: ${toDegrees(angleToLower)}`);
 
-        if(Math.sign(angle) === 1) {
-            if(Math.sign(angleToLower) === -1) {
+        if (Math.sign(angle) === 1) {
+            if (Math.sign(angleToLower) === -1) {
                 this.rotation = this.rotation.mul(
                     Quaternion.angleAxis(angleToLower, localX)
                 ).normalize();
             }
         } else {
-            if(Math.sign(angleToUpper) === 1) {
+            if (Math.sign(angleToUpper) === 1) {
                 this.rotation = this.rotation.mul(
                     Quaternion.angleAxis(angleToUpper, localX)
                 ).normalize();
@@ -101,6 +105,19 @@ export class Camera {
         this.rotation = this.rotation.mul(
             Quaternion.angleAxis(angle, Vector3.unitZ())
         ).normalize()
+    }
+
+    correctRoll() {
+        const localX = this.getLocalX();
+        const localZ = this.getLocalZ();
+        const yawX = Vector3.unitY()
+            .cross(localZ)
+            .normalize();
+
+        const rollError = localX.signedAngleTo(yawX, localZ);
+        this.rotation = Quaternion.angleAxis(rollError, localZ)
+            .mul(this.rotation)
+            .normalize();
     }
 
     setRotationFromYawPitch(yaw: number, pitch: number) {
