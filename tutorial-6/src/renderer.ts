@@ -13,7 +13,7 @@ export class Renderer {
     private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     private static NUMBER_OF_INDICES_PER_FACE = 3;
-    private static SIZE_OF_FACE = Renderer.NUMBER_OF_INDICES_PER_FACE * Int16Array.BYTES_PER_ELEMENT;
+    private static SIZE_OF_FACE = Renderer.NUMBER_OF_INDICES_PER_FACE * Uint32Array.BYTES_PER_ELEMENT;
 
     static async create(
         canvas: HTMLCanvasElement,
@@ -69,6 +69,7 @@ export class Renderer {
             }
         });
 
+        this.depthTexture = this.createDepthTexture();
         this.pipeline = this.createPipeline(shaderModule, this.textureFormat);
         this.uniformBuffer = this.createUniformBuffer();
 
@@ -83,6 +84,7 @@ export class Renderer {
     private context!: GPUCanvasContext;
     private device!: GPUDevice;
     private textureFormat!: GPUTextureFormat;
+    private depthTexture!: GPUTexture;
     private pipeline!: GPURenderPipeline;
     private uniformBuffer!: GPUBuffer;
     private bindGroup!: GPUBindGroup;
@@ -115,6 +117,21 @@ export class Renderer {
             device: this.device,
             format: this.textureFormat
         });
+
+        this.depthTexture?.destroy();
+        this.depthTexture = this.createDepthTexture();
+    }
+
+    private createDepthTexture(): GPUTexture {
+        return this.device.createTexture({
+            size: {
+                width: this.canvas.width,
+                height: this.canvas.height,
+                depthOrArrayLayers: 1
+            },
+            format: 'depth24plus',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
     }
 
     private createUniformBuffer(): GPUBuffer {
@@ -133,27 +150,27 @@ export class Renderer {
             world.byteLength
         );
 
-        const camera = new Camera(new Vector3(0,0,-10), Quaternion.identity());
+        const camera = new Camera(new Vector3(0, 0, -10), Quaternion.identity());
         const view = camera.view().toFloat32Array();
 
         this.device.queue.writeBuffer(
             uniformBuffer,
-            64,
+            Matrix4.BYTE_SIZE,
             view.buffer,
             view.byteOffset,
             view.byteLength
         );
 
         const projection = Matrix4.perspectiveLH(
-            Math.PI / 4,   // 45° FOV
+            Math.PI / 4,
             800 / 600,
-            0.1,           // near plane
-            1000.0         // far plane
+            0.1,
+            1000.0
         ).toFloat32Array();
 
         this.device.queue.writeBuffer(
             uniformBuffer,
-            128,
+            Matrix4.BYTE_SIZE * 2,
             projection.buffer,
             projection.byteOffset,
             projection.byteLength
@@ -189,7 +206,7 @@ export class Renderer {
             mappedAtCreation: true
         });
 
-        const indexBufferPtr = new Int16Array(indexBuffer.getMappedRange());
+        const indexBufferPtr = new Uint32Array(indexBuffer.getMappedRange());
         for (let i = 0; i < faces.length; ++i) {
             const face = faces[i];
             indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 0] = face.a;
@@ -266,7 +283,13 @@ export class Renderer {
             },
             primitive: {
                 topology: "triangle-list",
+                frontFace: 'cw',
                 cullMode: "back"
+            },
+            depthStencil: {
+                format: "depth24plus",
+                depthWriteEnabled: true,
+                depthCompare: "less"
             },
             layout: pipelineLayout,
         });
@@ -274,8 +297,13 @@ export class Renderer {
 
     private createBindGroup(texture: Texture): GPUBindGroup {
         const sampler = this.device.createSampler({
+            addressModeU: "repeat",
+            addressModeV: "repeat",
+            addressModeW: "repeat",
+
             magFilter: "linear",
             minFilter: "linear",
+            mipmapFilter: "linear"
         });
         return this.device.createBindGroup({
             layout: this.pipeline.getBindGroupLayout(0),
@@ -299,14 +327,20 @@ export class Renderer {
                     loadOp: "clear",
                     storeOp: "store"
                 }
-            ]
+            ],
+            depthStencilAttachment: {
+                view: this.depthTexture.createView(),
+                depthClearValue: 1.0,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+            },
         });
 
         pass.setPipeline(this.pipeline);
         pass.setBindGroup(0, this.bindGroup);
         pass.setVertexBuffer(0, vertexBuffer);
-        pass.setIndexBuffer(indexBuffer, "uint16");
-        pass.drawIndexed(indexBuffer.size / Int16Array.BYTES_PER_ELEMENT);
+        pass.setIndexBuffer(indexBuffer, "uint32");
+        pass.drawIndexed(indexBuffer.size / Uint32Array.BYTES_PER_ELEMENT);
         pass.end();
 
         return commandEncoder.finish();
