@@ -83,9 +83,6 @@ export class Camera {
         const angleToUpper = localZ.signedAngleTo(upper, localX);
         const angleToLower = localZ.signedAngleTo(lower, localX);
 
-        console.log(`angle to upper bound: ${toDegrees(angleToUpper)}`);
-        console.log(`angle to lower bound: ${toDegrees(angleToLower)}`);
-
         if (Math.sign(angle) === 1) {
             if (Math.sign(angleToLower) === -1) {
                 this.rotation = this.rotation.mul(
