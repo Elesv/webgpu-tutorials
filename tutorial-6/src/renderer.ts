@@ -156,26 +156,6 @@ export class Renderer {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
-        const world = new Matrix4().toFloat32Array();
-        this.device.queue.writeBuffer(
-            uniformBuffer,
-            0,
-            world.buffer,
-            world.byteOffset,
-            world.byteLength
-        );
-
-        const camera = new Camera(new Vector3(0, 0, -10), Quaternion.identity());
-        const view = camera.view().toFloat32Array();
-
-        this.device.queue.writeBuffer(
-            uniformBuffer,
-            Matrix4.BYTE_SIZE,
-            view.buffer,
-            view.byteOffset,
-            view.byteLength
-        );
-
         const projection = Matrix4.perspectiveLH(
             Math.PI / 4,
             800 / 600,
