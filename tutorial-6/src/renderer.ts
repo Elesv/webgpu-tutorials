@@ -121,13 +121,7 @@ export class Renderer {
         this.depthTexture?.destroy();
         this.depthTexture = this.createDepthTexture();
 
-        const projection = Matrix4.perspectiveLH(
-            Math.PI / 4,
-            this.canvas.width / this.canvas.height,
-            0.1,
-            1000.0
-        ).toFloat32Array();
-
+        const projection = this.createPerspectiveProjection();
         this.device.queue.writeBuffer(
             this.uniformBuffer,
             Matrix4.BYTE_SIZE * 2,
@@ -149,6 +143,15 @@ export class Renderer {
         });
     }
 
+    private createPerspectiveProjection(): Float32Array {
+        return Matrix4.perspectiveLH(
+            Math.PI / 4,
+            this.canvas.width / this.canvas.height,
+            0.1,
+            1000.0
+        ).toFloat32Array();
+    }
+
     private createUniformBuffer(): GPUBuffer {
         const uniformBufferSize = Matrix4.BYTE_SIZE * 3;
         const uniformBuffer = this.device.createBuffer({
@@ -156,13 +159,7 @@ export class Renderer {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
-        const projection = Matrix4.perspectiveLH(
-            Math.PI / 4,
-            800 / 600,
-            0.1,
-            1000.0
-        ).toFloat32Array();
-
+        const projection = this.createPerspectiveProjection();
         this.device.queue.writeBuffer(
             uniformBuffer,
             Matrix4.BYTE_SIZE * 2,
