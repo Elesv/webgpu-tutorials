@@ -40,7 +40,8 @@ export class CameraController {
         const dx = e.movementX * this.sensitivity;
         const dy = e.movementY * this.sensitivity;
 
-        this.camera.yaw(dx);
         this.camera.pitch(dy);
+        this.camera.yaw(dx);
+        this.camera.correctRoll();
     }
 }
