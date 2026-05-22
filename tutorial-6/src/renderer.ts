@@ -3,6 +3,7 @@ import { Camera } from "./camera.js";
 import { Face } from "./face.js";
 import { Matrix4 } from "./math/matrix4.js";
 import { Quaternion } from "./math/quaternion.js";
+import { toRadians } from "./math/utils.js";
 import { Vector3 } from "./math/vector3.js";
 import { Mesh } from "./mesh.js";
 import { Texture } from "./texture.js";
@@ -145,7 +146,7 @@ export class Renderer {
 
     private createPerspectiveProjection(): Float32Array {
         return Matrix4.perspectiveLH(
-            Math.PI / 4,
+            toRadians(90),
             this.canvas.width / this.canvas.height,
             0.1,
             1000.0
@@ -353,7 +354,7 @@ export class Renderer {
 
         const world = mesh.world.toFloat32Array();
         const view = camera.view().toFloat32Array();
-        
+
         const combined = new Float32Array(Matrix4.NUM_ENTRIES * 2);
         combined.set(world, 0);
         combined.set(view, Matrix4.NUM_ENTRIES);
