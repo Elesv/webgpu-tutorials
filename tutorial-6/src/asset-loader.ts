@@ -1,30 +1,16 @@
-import { Face } from "./face.js";
 import { Mesh } from "./mesh.js";
+import { SceneObject } from "./scene-object.js";
 import { Texture } from "./texture.js";
-import { Vertex } from "./vertex.js";
 
 export class AssetLoader {
     static async loadMesh(
-        verticesFilename: string,
-        facesFilename: string,
+        meshFilename: string,
         textureFilename: string
-    ): Promise<Mesh> {
-        const vertices: Vertex[] = await this.loadVertices(verticesFilename);
-        const faces: Face[] = await this.loadFaces(facesFilename);
+    ): Promise<SceneObject> {
+        const response = await fetch(meshFilename);
+        const mesh: Mesh = await response.json();
         const texture: Texture = await this.loadTexture(textureFilename);
-        return new Mesh(vertices, faces, texture);
-    }
-
-    private static async loadVertices(filename: string): Promise<Vertex[]> {
-        const response = await fetch(filename);
-        const vertices: Vertex[] = await response.json();
-        return vertices;
-    }
-
-    private static async loadFaces(filename: string): Promise<Face[]> {
-        const response = await fetch(filename);
-        const faces: Face[] = await response.json();
-        return faces;
+        return new SceneObject(mesh, texture);
     }
 
     static async loadShader(filename: string): Promise<string> {

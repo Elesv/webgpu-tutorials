@@ -5,7 +5,7 @@ import { Matrix4 } from "./math/matrix4.js";
 import { Quaternion } from "./math/quaternion.js";
 import { toRadians } from "./math/utils.js";
 import { Vector3 } from "./math/vector3.js";
-import { Mesh } from "./mesh.js";
+import { SceneObject } from "./scene-object.js";
 import { Texture } from "./texture.js";
 import { Vertex } from "./vertex.js";
 
@@ -339,20 +339,20 @@ export class Renderer {
         return commandEncoder.finish();
     }
 
-    uploadMesh(mesh: Mesh) {
-        mesh.vertexBuffer = this.createVertexBuffer(mesh.vertices);
-        mesh.indexBuffer = this.createIndexBuffer(mesh.faces);
-        mesh.texture.texture = this.createTexture(mesh.texture.imageBitmap);
-        this.bindGroup = this.createBindGroup(mesh.texture);
-        mesh.isUploaded = true;
+    uploadMesh(object: SceneObject) {
+        object.vertexBuffer = this.createVertexBuffer(object.mesh.vertices);
+        object.indexBuffer = this.createIndexBuffer(object.mesh.faces);
+        object.texture.texture = this.createTexture(object.texture.imageBitmap);
+        this.bindGroup = this.createBindGroup(object.texture);
+        object.isUploaded = true;
     }
 
-    renderMesh(mesh: Mesh, camera: Camera) {
-        if (!mesh.isUploaded) {
-            this.uploadMesh(mesh);
+    renderObject(object: SceneObject, camera: Camera) {
+        if (!object.isUploaded) {
+            this.uploadMesh(object);
         }
 
-        const world = mesh.world.toFloat32Array();
+        const world = object.world.toFloat32Array();
         const view = camera.view().toFloat32Array();
 
         const combined = new Float32Array(Matrix4.NUM_ENTRIES * 2);
@@ -368,7 +368,7 @@ export class Renderer {
         );
 
         this.device.queue.submit(
-            [this.createCommandBuffer(mesh.vertexBuffer, mesh.indexBuffer)]
+            [this.createCommandBuffer(object.vertexBuffer, object.indexBuffer)]
         );
     }
 }
