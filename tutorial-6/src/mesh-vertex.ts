@@ -1,4 +1,4 @@
-export interface Vertex {
+export interface MeshVertex {
     x: number;
     y: number;
     z: number;

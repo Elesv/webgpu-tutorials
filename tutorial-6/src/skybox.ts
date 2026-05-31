@@ -1,13 +1,11 @@
 import { Face } from "./face.js";
-import { Matrix4 } from "./math/matrix4.js";
-import { MeshVertex } from "./mesh-vertex.js";
+import { SkyboxVertex } from "./skybox-vertex.js";
 import { Texture } from "./texture.js";
 
-export class Mesh {
-    vertices: MeshVertex[];
+export class Skybox {
+    vertices: SkyboxVertex[]
     faces: Face[];
     texture: Texture;
-    world: Matrix4 = Matrix4.identity();
 
     vertexBuffer!: GPUBuffer;
     indexBuffer!: GPUBuffer;
@@ -15,7 +13,7 @@ export class Mesh {
     isUploaded: boolean = false;
 
     constructor(
-        vertices: MeshVertex[],
+        vertices: SkyboxVertex[],
         faces: Face[],
         texture: Texture
     ) {

@@ -1,6 +1,6 @@
 import { Matrix4 } from "./math/matrix4.js";
 import { Quaternion } from "./math/quaternion.js";
-import { toDegrees, toRadians } from "./math/utils.js";
+import { toRadians } from "./math/utils.js";
 import { Vector3 } from "./math/vector3.js";
 
 export class Camera {
@@ -74,8 +74,8 @@ export class Camera {
         const localX = this.getLocalX();
         const localZ = this.getLocalZ();
 
-        const qUpper = Quaternion.angleAxis(toRadians(5), localX);
-        const qLower = Quaternion.angleAxis(toRadians(175), localX);
+        const qUpper = Quaternion.angleAxis(toRadians(10), localX);
+        const qLower = Quaternion.angleAxis(toRadians(170), localX);
 
         const upper = qUpper.rotate(Vector3.unitY());
         const lower = qLower.rotate(Vector3.unitY());

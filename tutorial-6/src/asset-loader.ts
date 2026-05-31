@@ -1,16 +1,28 @@
+import { MeshModel } from "./mesh-model.js";
 import { Mesh } from "./mesh.js";
-import { SceneObject } from "./scene-object.js";
+import { SkyboxModel } from "./skybox-model.js";
+import { Skybox } from "./skybox.js";
 import { Texture } from "./texture.js";
 
 export class AssetLoader {
     static async loadMesh(
-        meshFilename: string,
+        modelFilename: string,
         textureFilename: string
-    ): Promise<SceneObject> {
-        const response = await fetch(meshFilename);
-        const mesh: Mesh = await response.json();
+    ): Promise<Mesh> {
+        const response = await fetch(modelFilename);
+        const model: MeshModel = await response.json();
         const texture: Texture = await this.loadTexture(textureFilename);
-        return new SceneObject(mesh, texture);
+        return new Mesh(model.vertices, model.faces, texture);
+    }
+
+    static async loadSkybox(
+        modelFilename: string,
+        textureFilename: string
+    ): Promise<Skybox> {
+        const response = await fetch(modelFilename);
+        const model: SkyboxModel = await response.json();
+        const texture: Texture = await this.loadTexture(textureFilename);
+        return new Skybox(model.vertices, model.faces, texture);
     }
 
     static async loadShader(filename: string): Promise<string> {

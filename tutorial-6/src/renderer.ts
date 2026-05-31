@@ -1,13 +1,14 @@
-import { AssetLoader } from "./asset-loader.js";
 import { Camera } from "./camera.js";
 import { Face } from "./face.js";
 import { Matrix4 } from "./math/matrix4.js";
-import { Quaternion } from "./math/quaternion.js";
 import { toRadians } from "./math/utils.js";
-import { Vector3 } from "./math/vector3.js";
-import { SceneObject } from "./scene-object.js";
+import { Mesh } from "./mesh.js";
 import { Texture } from "./texture.js";
-import { Vertex } from "./vertex.js";
+import { MeshVertex } from "./mesh-vertex.js";
+import { MeshPipeline } from "./pipelines/mesh-pipeline.js";
+import { SkyboxPipeline } from "./pipelines/skybox-pipeline.js";
+import { Skybox } from "./skybox.js";
+import { SkyboxVertex } from "./skybox-vertex.js";
 
 export class Renderer {
     private static NUMBER_OF_COORDINATES_PER_VERTEX = 5;
@@ -16,13 +17,15 @@ export class Renderer {
     private static NUMBER_OF_INDICES_PER_FACE = 3;
     private static SIZE_OF_FACE = Renderer.NUMBER_OF_INDICES_PER_FACE * Uint32Array.BYTES_PER_ELEMENT;
 
+    private skyboxPipeline!: SkyboxPipeline;
+    private meshPipeline!: MeshPipeline;
+
     static async create(
         canvas: HTMLCanvasElement,
         onInitSuccessful: () => void,
         onDeviceLost: (info: GPUDeviceLostInfo) => void
     ) {
-        const shaderCode = await AssetLoader.loadShader("shaders/shaders.wgsl");
-        const renderer = new Renderer(canvas, shaderCode, onInitSuccessful, onDeviceLost);
+        const renderer = new Renderer(canvas, onInitSuccessful, onDeviceLost);
         await renderer.init();
         return renderer;
     }
@@ -53,26 +56,26 @@ export class Renderer {
             }
         });
 
-        const observer = new ResizeObserver(() => this.resize());
-        observer.observe(this.canvas);
-
         this.textureFormat = navigator.gpu.getPreferredCanvasFormat();
         this.context.configure({
             device: this.device,
             format: this.textureFormat
         });
 
-        const shaderModule = this.createShaderModule(this.shaderCode);
-        shaderModule.getCompilationInfo().then((info) => {
-            if (info.messages.length > 0) {
-                console.warn("Shader compilation info:");
-                info.messages.forEach((msg) => console.warn(`${msg.lineNum}:${msg.linePos} - ${msg.message}`));
-            }
-        });
-
         this.depthTexture = this.createDepthTexture();
-        this.pipeline = this.createPipeline(shaderModule, this.textureFormat);
-        this.uniformBuffer = this.createUniformBuffer();
+
+        this.skyboxPipeline = await SkyboxPipeline.create();
+        this.skyboxPipeline.init(this.textureFormat, this.device);
+
+        this.meshPipeline = await MeshPipeline.create();
+        this.meshPipeline.init(this.textureFormat, this.device);
+
+        const projection = this.createPerspectiveProjection();
+        this.meshUniformBuffer = this.createMeshUniformBuffer(projection);
+        this.skyboxUniformBuffer = this.createSkyboxUniformBuffer(projection);
+
+        const observer = new ResizeObserver(() => this.resize());
+        observer.observe(this.canvas);
 
         this.onInitSuccessful();
     }
@@ -80,24 +83,21 @@ export class Renderer {
     private onInitSuccessful: () => void;
     private onDeviceLost: (info: GPUDeviceLostInfo) => void;
 
-    private shaderCode: string;
     private canvas: HTMLCanvasElement;
     private context!: GPUCanvasContext;
     private device!: GPUDevice;
     private textureFormat!: GPUTextureFormat;
     private depthTexture!: GPUTexture;
-    private pipeline!: GPURenderPipeline;
-    private uniformBuffer!: GPUBuffer;
-    private bindGroup!: GPUBindGroup;
+
+    private meshUniformBuffer!: GPUBuffer;
+    private skyboxUniformBuffer!: GPUBuffer;
 
     private constructor(
         canvas: HTMLCanvasElement,
-        shaderCode: string,
         onInitSuccessful: () => void,
         onDeviceLost: (info: GPUDeviceLostInfo) => void
     ) {
         this.canvas = canvas;
-        this.shaderCode = shaderCode;
         this.onInitSuccessful = onInitSuccessful;
         this.onDeviceLost = onDeviceLost;
     }
@@ -123,9 +123,18 @@ export class Renderer {
         this.depthTexture = this.createDepthTexture();
 
         const projection = this.createPerspectiveProjection();
+
         this.device.queue.writeBuffer(
-            this.uniformBuffer,
+            this.meshUniformBuffer,
             Matrix4.BYTE_SIZE * 2,
+            projection.buffer,
+            projection.byteOffset,
+            projection.byteLength
+        );
+
+        this.device.queue.writeBuffer(
+            this.skyboxUniformBuffer,
+            Matrix4.BYTE_SIZE * 1,
             projection.buffer,
             projection.byteOffset,
             projection.byteLength
@@ -153,14 +162,13 @@ export class Renderer {
         ).toFloat32Array();
     }
 
-    private createUniformBuffer(): GPUBuffer {
+    private createMeshUniformBuffer(projection: Float32Array): GPUBuffer {
         const uniformBufferSize = Matrix4.BYTE_SIZE * 3;
         const uniformBuffer = this.device.createBuffer({
             size: uniformBufferSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
-        const projection = this.createPerspectiveProjection();
         this.device.queue.writeBuffer(
             uniformBuffer,
             Matrix4.BYTE_SIZE * 2,
@@ -172,7 +180,25 @@ export class Renderer {
         return uniformBuffer;
     }
 
-    private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
+    private createSkyboxUniformBuffer(projection: Float32Array): GPUBuffer {
+        const uniformBufferSize = Matrix4.BYTE_SIZE * 2;
+        const uniformBuffer = this.device.createBuffer({
+            size: uniformBufferSize,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+
+        this.device.queue.writeBuffer(
+            uniformBuffer,
+            Matrix4.BYTE_SIZE * 1,
+            projection.buffer,
+            projection.byteOffset,
+            projection.byteLength
+        );
+
+        return uniformBuffer;
+    }
+
+    private createMeshVertexBuffer(vertices: MeshVertex[]): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
             size: vertices.length * Renderer.SIZE_OF_VERTEX,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -186,6 +212,27 @@ export class Renderer {
             vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
             vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 3] = vertices[i].u;
             vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 4] = vertices[i].v;
+        }
+
+        vertexBuffer.unmap();
+        return vertexBuffer;
+    }
+
+    private createSkyboxVertexBuffer(vertices: SkyboxVertex[]): GPUBuffer {
+        const numCoordsPerVertex = 3;
+        const vertexByteSize = numCoordsPerVertex * Float32Array.BYTES_PER_ELEMENT;
+
+        const vertexBuffer = this.device.createBuffer({
+            size: vertices.length * vertexByteSize,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
+        });
+
+        const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
+        for (let i = 0; i < vertices.length; ++i) {
+            vertexBufferPtr[i * numCoordsPerVertex + 0] = vertices[i].x;
+            vertexBufferPtr[i * numCoordsPerVertex + 1] = vertices[i].y;
+            vertexBufferPtr[i * numCoordsPerVertex + 2] = vertices[i].z;
         }
 
         vertexBuffer.unmap();
@@ -225,70 +272,56 @@ export class Renderer {
         return lTexture;
     }
 
-    private createShaderModule(code: string): GPUShaderModule {
-        return this.device.createShaderModule({ code: code });
-    }
-
-    private createPipeline(
-        shaderModule: GPUShaderModule,
-        textureFormat: GPUTextureFormat
-    ): GPURenderPipeline {
-        const bindGroupLayout = this.device.createBindGroupLayout({
-            entries: [
-                {
-                    binding: 0,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    sampler: { type: "filtering" },
-                },
-                {
-                    binding: 1,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: { sampleType: "float" },
-                },
-                {
-                    binding: 2,
-                    visibility: GPUShaderStage.VERTEX,
-                    buffer: { type: "uniform" }
-                }
-            ],
+    private createCubemapTexture(bitmap: ImageBitmap): GPUTexture {
+        const faceSize = 1024;
+        const cubeTexture = this.device.createTexture({
+            size: {
+                width: faceSize,
+                height: faceSize,
+                depthOrArrayLayers: 6,
+            },
+            format: "rgba8unorm",
+            usage:
+                GPUTextureUsage.TEXTURE_BINDING |
+                GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
+            dimension: "2d",
+            mipLevelCount: 1,
         });
 
-        const pipelineLayout = this.device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
-        const vertexBufferLayout: GPUVertexBufferLayout = {
-            arrayStride: Renderer.SIZE_OF_VERTEX,
-            stepMode: "vertex",
-            attributes: [
-                { shaderLocation: 0, offset: 0, format: "float32x3" },
-                { shaderLocation: 1, offset: 3 * 4, format: "float32x2" },
-            ]
-        };
+        const faces = [
+            { x: 2, y: 1 },
+            { x: 0, y: 1 },
+            { x: 1, y: 0 },
+            { x: 1, y: 2 },
+            { x: 1, y: 1 },
+            { x: 3, y: 1 },
+        ];
 
-        return this.device.createRenderPipeline({
-            vertex: {
-                module: shaderModule,
-                entryPoint: "vertexMain",
-                buffers: [vertexBufferLayout]
-            },
-            fragment: {
-                module: shaderModule,
-                entryPoint: "fragmentMain",
-                targets: [{ format: textureFormat }],
-            },
-            primitive: {
-                topology: "triangle-list",
-                frontFace: 'cw',
-                cullMode: "back"
-            },
-            depthStencil: {
-                format: "depth24plus",
-                depthWriteEnabled: true,
-                depthCompare: "less"
-            },
-            layout: pipelineLayout,
-        });
+        for (let i = 0; i < 6; ++i) {
+            const face = faces[i];
+            this.device.queue.copyExternalImageToTexture({
+                source: bitmap,
+                origin: {
+                    x: face.x * faceSize,
+                    y: face.y * faceSize,
+                },
+            }, {
+                texture: cubeTexture,
+                origin: {
+                    x: 0,
+                    y: 0,
+                    z: i,
+                },
+            }, {
+                width: faceSize,
+                height: faceSize,
+            });
+        }
+
+        return cubeTexture;
     }
 
-    private createBindGroup(texture: Texture): GPUBindGroup {
+    private createMeshBindGroup(texture: Texture): GPUBindGroup {
         const sampler = this.device.createSampler({
             addressModeU: "repeat",
             addressModeV: "repeat",
@@ -299,16 +332,39 @@ export class Renderer {
             mipmapFilter: "linear"
         });
         return this.device.createBindGroup({
-            layout: this.pipeline.getBindGroupLayout(0),
+            layout: this.meshPipeline.pipeline.getBindGroupLayout(0),
             entries: [
                 { binding: 0, resource: sampler },
                 { binding: 1, resource: texture.texture.createView() },
-                { binding: 2, resource: this.uniformBuffer },
+                { binding: 2, resource: this.meshUniformBuffer },
             ],
         });
     }
 
-    private createCommandBuffer(vertexBuffer: GPUBuffer, indexBuffer: GPUBuffer): GPUCommandBuffer {
+    private createSkyboxBindGroup(texture: Texture): GPUBindGroup {
+        const sampler = this.device.createSampler({
+            magFilter: "linear",
+            minFilter: "linear",
+            mipmapFilter: "linear",
+            addressModeU: "clamp-to-edge",
+            addressModeV: "clamp-to-edge",
+            addressModeW: "clamp-to-edge"
+        });
+        return this.device.createBindGroup({
+            layout: this.skyboxPipeline.pipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: sampler },
+                {
+                    binding: 1, resource: texture.texture.createView({
+                        dimension: "cube"
+                    })
+                },
+                { binding: 2, resource: this.skyboxUniformBuffer },
+            ],
+        });
+    }
+
+    private createCommandBuffer(skybox: Skybox, mesh: Mesh): GPUCommandBuffer {
         const commandEncoder = this.device.createCommandEncoder();
         const texture = this.context.getCurrentTexture();
         const view = texture.createView();
@@ -329,46 +385,69 @@ export class Renderer {
             },
         });
 
-        pass.setPipeline(this.pipeline);
-        pass.setBindGroup(0, this.bindGroup);
-        pass.setVertexBuffer(0, vertexBuffer);
-        pass.setIndexBuffer(indexBuffer, "uint32");
-        pass.drawIndexed(indexBuffer.size / Uint32Array.BYTES_PER_ELEMENT);
+        this.skyboxPipeline.render(pass, skybox);
+        this.meshPipeline.render(pass, mesh);
         pass.end();
 
         return commandEncoder.finish();
     }
 
-    uploadMesh(object: SceneObject) {
-        object.vertexBuffer = this.createVertexBuffer(object.mesh.vertices);
-        object.indexBuffer = this.createIndexBuffer(object.mesh.faces);
-        object.texture.texture = this.createTexture(object.texture.imageBitmap);
-        this.bindGroup = this.createBindGroup(object.texture);
-        object.isUploaded = true;
+    uploadMesh(mesh: Mesh) {
+        mesh.vertexBuffer = this.createMeshVertexBuffer(mesh.vertices);
+        mesh.indexBuffer = this.createIndexBuffer(mesh.faces);
+        mesh.texture.texture = this.createTexture(mesh.texture.imageBitmap);
+        mesh.bindGroup = this.createMeshBindGroup(mesh.texture);
+        mesh.isUploaded = true;
     }
 
-    renderObject(object: SceneObject, camera: Camera) {
-        if (!object.isUploaded) {
-            this.uploadMesh(object);
+    uploadSkybox(skybox: Skybox) {
+        skybox.vertexBuffer = this.createSkyboxVertexBuffer(skybox.vertices);
+        skybox.indexBuffer = this.createIndexBuffer(skybox.faces);
+        skybox.texture.texture = this.createCubemapTexture(skybox.texture.imageBitmap);
+        skybox.bindGroup = this.createSkyboxBindGroup(skybox.texture);
+        skybox.isUploaded = true;
+    }
+
+    renderMesh(skybox: Skybox, mesh: Mesh, camera: Camera) {
+        if (!skybox.isUploaded) {
+            this.uploadSkybox(skybox);
         }
 
-        const world = object.world.toFloat32Array();
-        const view = camera.view().toFloat32Array();
+        if (!mesh.isUploaded) {
+            this.uploadMesh(mesh);
+        }
+
+        const viewMatrix = camera.view();
+        const worldArray = mesh.world.toFloat32Array();
+        const viewArray = viewMatrix.toFloat32Array();
 
         const combined = new Float32Array(Matrix4.NUM_ENTRIES * 2);
-        combined.set(world, 0);
-        combined.set(view, Matrix4.NUM_ENTRIES);
+        combined.set(worldArray, 0);
+        combined.set(viewArray, Matrix4.NUM_ENTRIES);
 
         this.device.queue.writeBuffer(
-            this.uniformBuffer,
+            this.meshUniformBuffer,
             0,
             combined.buffer,
             combined.byteOffset,
             combined.byteLength
         );
 
-        this.device.queue.submit(
-            [this.createCommandBuffer(object.vertexBuffer, object.indexBuffer)]
+        const viewMatrixWithoutTranslation = viewMatrix.clone();
+        viewMatrixWithoutTranslation.m41 = 0;
+        viewMatrixWithoutTranslation.m42 = 0;
+        viewMatrixWithoutTranslation.m43 = 0;
+
+        const viewWithoutTranslationArray = viewMatrixWithoutTranslation.toFloat32Array();
+
+        this.device.queue.writeBuffer(
+            this.skyboxUniformBuffer,
+            0,
+            viewWithoutTranslationArray.buffer,
+            viewWithoutTranslationArray.byteOffset,
+            viewWithoutTranslationArray.byteLength
         );
+
+        this.device.queue.submit([this.createCommandBuffer(skybox, mesh)]);
     }
 }
