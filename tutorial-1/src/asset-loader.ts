@@ -14,7 +14,7 @@ export class AssetLoader {
         return text;
     }
 
-    private static resolvePath(url: string) {
+    private static resolvePath(url: string): string {
         const result = new URL(url, import.meta.url).href;
         return result;
     }
