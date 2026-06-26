@@ -103,7 +103,7 @@ export class Renderer {
     private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
             size: vertices.length * Renderer.SIZE_OF_VERTEX,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.VERTEX,
             mappedAtCreation: true
         });
 
