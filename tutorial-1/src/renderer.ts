@@ -139,12 +139,12 @@ export class Renderer {
         return this.device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
-                entryPoint: "vertexMain",
+                entryPoint: "vs_main",
                 buffers: [vertexBufferLayout]
             },
             fragment: {
                 module: shaderModule,
-                entryPoint: "fragmentMain",
+                entryPoint: "fs_main",
                 targets: [{ format: textureFormat }],
             },
             primitive: { topology: "point-list" },
