@@ -3,8 +3,8 @@ import { Geometry } from './geometry.js';
 import { Vertex } from './vertex.js';
 
 export class Renderer {
-    private static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
-    private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static NUM_COORDS_PER_VERTEX = 3;
+    private static SIZE_OF_VERTEX = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     private shaderCode: string;
     private canvas: HTMLCanvasElement;
@@ -109,9 +109,9 @@ export class Renderer {
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
         for (let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 0] = vertices[i].x;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 1] = vertices[i].y;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 0] = vertices[i].x;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 1] = vertices[i].y;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 2] = vertices[i].z;
         }
 
         vertexBuffer.unmap();
