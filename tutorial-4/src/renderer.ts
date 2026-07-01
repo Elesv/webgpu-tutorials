@@ -4,11 +4,11 @@ import { Mesh } from "./mesh.js";
 import { Vertex } from "./vertex.js";
 
 export class Renderer {
-    private static NUM_COORDS_PER_VERTEX = 3;
-    private static VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static readonly NUM_COORDS_PER_VERTEX = 3;
+    private static readonly VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
-    private static NUM_INDICES_PER_FACE = 3;
-    private static FACE_SIZE = Renderer.NUM_INDICES_PER_FACE * Uint16Array.BYTES_PER_ELEMENT;
+    private static readonly NUM_INDICES_PER_FACE = 3;
+    private static readonly FACE_SIZE = Renderer.NUM_INDICES_PER_FACE * Uint16Array.BYTES_PER_ELEMENT;
 
     private shaderCode: string;
     private canvas: HTMLCanvasElement;

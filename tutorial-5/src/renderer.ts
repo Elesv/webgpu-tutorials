@@ -6,10 +6,10 @@ import { Vertex } from "./vertex.js";
 
 export class Renderer {
     private static readonly NUM_COORDS_PER_VERTEX = 5;
-    private static VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static readonly VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
-    private static NUM_INDICES_PER_FACE = 3;
-    private static FACE_SIZE = Renderer.NUM_INDICES_PER_FACE * Uint16Array.BYTES_PER_ELEMENT;
+    private static readonly NUM_INDICES_PER_FACE = 3;
+    private static readonly FACE_SIZE = Renderer.NUM_INDICES_PER_FACE * Uint16Array.BYTES_PER_ELEMENT;
 
     private shaderCode: string;
     private canvas: HTMLCanvasElement;
@@ -136,7 +136,7 @@ export class Renderer {
     private createIndexBuffer(faces: Face[]): GPUBuffer {
         const indexBuffer = this.device.createBuffer({
             size: faces.length * Renderer.FACE_SIZE,
-            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.INDEX,
             mappedAtCreation: true
         });
 
@@ -240,7 +240,7 @@ export class Renderer {
             colorAttachments: [
                 {
                     view: view,
-                    clearValue: { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
                     loadOp: "clear",
                     storeOp: "store"
                 }
