@@ -3,8 +3,18 @@ import { Mesh } from "./mesh.js";
 import { Vertex } from "./vertex.js";
 
 export class Renderer {
-    private static NUMBER_OF_COORDINATES_PER_VERTEX = 3;
-    private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static NUM_COORDS_PER_VERTEX = 3;
+    private static VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+
+    private shaderCode: string;
+    private canvas: HTMLCanvasElement;
+    private context!: GPUCanvasContext;
+    private device!: GPUDevice;
+    private textureFormat!: GPUTextureFormat;
+    private pipeline!: GPURenderPipeline;
+
+    private onInitSuccessful: () => void;
+    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
 
     static async create(
         canvas: HTMLCanvasElement,
@@ -53,21 +63,11 @@ export class Renderer {
             format: this.textureFormat
         });
 
-        const shaderModule = await this.createShaderModule(this.shaderCode);
+        const shaderModule = this.createShaderModule(this.shaderCode);
         this.pipeline = this.createPipeline(shaderModule, this.textureFormat);
 
         this.onInitSuccessful();
     }
-
-    private onInitSuccessful: () => void;
-    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
-
-    private shaderCode: string;
-    private canvas: HTMLCanvasElement;
-    private context!: GPUCanvasContext;
-    private device!: GPUDevice;
-    private textureFormat!: GPUTextureFormat;
-    private pipeline!: GPURenderPipeline;
 
     private constructor(
         canvas: HTMLCanvasElement,
@@ -77,6 +77,7 @@ export class Renderer {
 
         this.canvas = canvas;
         this.shaderCode = shaderCode;
+
         this.onInitSuccessful = onInitSuccessful;
         this.onDeviceLost = onDeviceLost;
     }
@@ -101,16 +102,16 @@ export class Renderer {
 
     private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
-            size: vertices.length * Renderer.SIZE_OF_VERTEX,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            size: vertices.length * Renderer.VERTEX_SIZE,
+            usage: GPUBufferUsage.VERTEX,
             mappedAtCreation: true
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
         for (let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 0] = vertices[i].x;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 1] = vertices[i].y;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 0] = vertices[i].x;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 1] = vertices[i].y;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 2] = vertices[i].z;
         }
 
         vertexBuffer.unmap();
@@ -124,7 +125,7 @@ export class Renderer {
     private createPipeline(shaderModule: GPUShaderModule, textureFormat: GPUTextureFormat): GPURenderPipeline {
         const pipelineLayout = this.device.createPipelineLayout({ bindGroupLayouts: [] });
         const vertexBufferLayout: GPUVertexBufferLayout = {
-            arrayStride: Renderer.SIZE_OF_VERTEX,
+            arrayStride: Renderer.VERTEX_SIZE,
             stepMode: "vertex",
             attributes: [
                 {
@@ -138,12 +139,12 @@ export class Renderer {
         return this.device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
-                entryPoint: "vertexMain",
+                entryPoint: "vs_main",
                 buffers: [vertexBufferLayout]
             },
             fragment: {
                 module: shaderModule,
-                entryPoint: "fragmentMain",
+                entryPoint: "fs_main",
                 targets: [{ format: textureFormat }],
             },
             primitive: { topology: "triangle-strip" },
@@ -168,7 +169,7 @@ export class Renderer {
 
         pass.setVertexBuffer(0, vertexBuffer);
         pass.setPipeline(this.pipeline);
-        pass.draw(vertexBuffer.size / Renderer.SIZE_OF_VERTEX);
+        pass.draw(vertexBuffer.size / Renderer.VERTEX_SIZE);
         pass.end();
 
         return commandEncoder.finish();
