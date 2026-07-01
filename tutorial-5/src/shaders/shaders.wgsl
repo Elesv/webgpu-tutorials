@@ -10,7 +10,7 @@ var diffuseSampler: sampler;
 var diffuseTexture: texture_2d<f32>;
 
 @vertex
-fn vertexMain(
+fn vs_main(
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>
 ) -> VertexOutput {
@@ -21,6 +21,6 @@ fn vertexMain(
 }
 
 @fragment
-fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return textureSample(diffuseTexture, diffuseSampler, in.uv);
 }

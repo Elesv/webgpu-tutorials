@@ -5,11 +5,22 @@ import { Texture } from "./texture.js";
 import { Vertex } from "./vertex.js";
 
 export class Renderer {
-    private static NUMBER_OF_COORDINATES_PER_VERTEX = 5;
-    private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static readonly NUM_COORDS_PER_VERTEX = 5;
+    private static VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
-    private static NUMBER_OF_INDICES_PER_FACE = 3;
-    private static SIZE_OF_FACE = Renderer.NUMBER_OF_INDICES_PER_FACE * Int16Array.BYTES_PER_ELEMENT;
+    private static NUM_INDICES_PER_FACE = 3;
+    private static FACE_SIZE = Renderer.NUM_INDICES_PER_FACE * Uint16Array.BYTES_PER_ELEMENT;
+
+    private shaderCode: string;
+    private canvas: HTMLCanvasElement;
+    private context!: GPUCanvasContext;
+    private device!: GPUDevice;
+    private textureFormat!: GPUTextureFormat;
+    private pipeline!: GPURenderPipeline;
+    private bindGroup!: GPUBindGroup;
+
+    private onInitSuccessful: () => void;
+    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
 
     static async create(
         canvas: HTMLCanvasElement,
@@ -71,17 +82,6 @@ export class Renderer {
         this.onInitSuccessful();
     }
 
-    private onInitSuccessful: () => void;
-    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
-
-    private shaderCode: string;
-    private canvas: HTMLCanvasElement;
-    private context!: GPUCanvasContext;
-    private device!: GPUDevice;
-    private textureFormat!: GPUTextureFormat;
-    private pipeline!: GPURenderPipeline;
-    private bindGroup!: GPUBindGroup;
-
     private constructor(
         canvas: HTMLCanvasElement,
         shaderCode: string,
@@ -90,6 +90,7 @@ export class Renderer {
 
         this.canvas = canvas;
         this.shaderCode = shaderCode;
+
         this.onInitSuccessful = onInitSuccessful;
         this.onDeviceLost = onDeviceLost;
     }
@@ -114,18 +115,18 @@ export class Renderer {
 
     private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
-            size: vertices.length * Renderer.SIZE_OF_VERTEX,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            size: vertices.length * Renderer.VERTEX_SIZE,
+            usage: GPUBufferUsage.VERTEX,
             mappedAtCreation: true
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
         for (let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 0] = vertices[i].x;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 1] = vertices[i].y;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 3] = vertices[i].u;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 4] = vertices[i].v;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 0] = vertices[i].x;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 1] = vertices[i].y;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 2] = vertices[i].z;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 3] = vertices[i].u;
+            vertexBufferPtr[i * Renderer.NUM_COORDS_PER_VERTEX + 4] = vertices[i].v;
         }
 
         vertexBuffer.unmap();
@@ -134,17 +135,17 @@ export class Renderer {
 
     private createIndexBuffer(faces: Face[]): GPUBuffer {
         const indexBuffer = this.device.createBuffer({
-            size: faces.length * Renderer.SIZE_OF_FACE,
+            size: faces.length * Renderer.FACE_SIZE,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true
         });
 
-        const indexBufferPtr = new Int16Array(indexBuffer.getMappedRange());
+        const indexBufferPtr = new Uint16Array(indexBuffer.getMappedRange());
         for (let i = 0; i < faces.length; ++i) {
             const face = faces[i];
-            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 0] = face.a;
-            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 1] = face.b;
-            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 2] = face.c;
+            indexBufferPtr[i * Renderer.NUM_INDICES_PER_FACE + 0] = face.a;
+            indexBufferPtr[i * Renderer.NUM_INDICES_PER_FACE + 1] = face.b;
+            indexBufferPtr[i * Renderer.NUM_INDICES_PER_FACE + 2] = face.c;
         }
 
         indexBuffer.unmap();
@@ -190,7 +191,7 @@ export class Renderer {
 
         const pipelineLayout = this.device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
         const vertexBufferLayout: GPUVertexBufferLayout = {
-            arrayStride: Renderer.SIZE_OF_VERTEX,
+            arrayStride: Renderer.VERTEX_SIZE,
             stepMode: "vertex",
             attributes: [
                 { shaderLocation: 0, offset: 0, format: "float32x3" },
@@ -201,12 +202,12 @@ export class Renderer {
         return this.device.createRenderPipeline({
             vertex: {
                 module: shaderModule,
-                entryPoint: "vertexMain",
+                entryPoint: "vs_main",
                 buffers: [vertexBufferLayout]
             },
             fragment: {
                 module: shaderModule,
-                entryPoint: "fragmentMain",
+                entryPoint: "fs_main",
                 targets: [{ format: textureFormat }],
             },
             primitive: {
@@ -250,7 +251,7 @@ export class Renderer {
         pass.setBindGroup(0, this.bindGroup);
         pass.setVertexBuffer(0, vertexBuffer);
         pass.setIndexBuffer(indexBuffer, "uint16");
-        pass.drawIndexed(indexBuffer.size / Int16Array.BYTES_PER_ELEMENT);
+        pass.drawIndexed(indexBuffer.size / Uint16Array.BYTES_PER_ELEMENT);
         pass.end();
 
         return commandEncoder.finish();
