@@ -4,7 +4,7 @@ import { Vertex } from './vertex.js';
 
 export class Renderer {
     private static NUM_COORDS_PER_VERTEX = 3;
-    private static SIZE_OF_VERTEX = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     private shaderCode: string;
     private canvas: HTMLCanvasElement;
@@ -102,7 +102,7 @@ export class Renderer {
 
     private createVertexBuffer(vertices: Vertex[]): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
-            size: vertices.length * Renderer.SIZE_OF_VERTEX,
+            size: vertices.length * Renderer.VERTEX_SIZE,
             usage: GPUBufferUsage.VERTEX,
             mappedAtCreation: true
         });
@@ -125,7 +125,7 @@ export class Renderer {
     private createPipeline(shaderModule: GPUShaderModule, textureFormat: GPUTextureFormat): GPURenderPipeline {
         const pipelineLayout = this.device.createPipelineLayout({ bindGroupLayouts: [] });
         const vertexBufferLayout: GPUVertexBufferLayout = {
-            arrayStride: Renderer.SIZE_OF_VERTEX,
+            arrayStride: Renderer.VERTEX_SIZE,
             stepMode: "vertex",
             attributes: [
                 {
@@ -169,7 +169,7 @@ export class Renderer {
 
         renderPass.setVertexBuffer(0, vertexBuffer);
         renderPass.setPipeline(this.pipeline);
-        renderPass.draw(vertexBuffer.size / Renderer.SIZE_OF_VERTEX);
+        renderPass.draw(vertexBuffer.size / Renderer.VERTEX_SIZE);
         renderPass.end();
 
         return commandEncoder.finish();

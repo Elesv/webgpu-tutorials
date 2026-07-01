@@ -6,6 +6,16 @@ export class Renderer {
     private static readonly NUM_COORDS_PER_VERTEX = 3;
     private static readonly VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
+    private shaderCode: string;
+    private canvas: HTMLCanvasElement;
+    private context!: GPUCanvasContext;
+    private device!: GPUDevice;
+    private textureFormat!: GPUTextureFormat;
+    private pipeline!: GPURenderPipeline;
+
+    private onInitSuccessful: () => void;
+    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
+
     static async create(
         canvas: HTMLCanvasElement,
         onInitSuccessful: () => void,
@@ -59,16 +69,6 @@ export class Renderer {
         this.onInitSuccessful();
     }
 
-    private onInitSuccessful: () => void;
-    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
-
-    private shaderCode: string;
-    private canvas: HTMLCanvasElement;
-    private context!: GPUCanvasContext;
-    private device!: GPUDevice;
-    private textureFormat!: GPUTextureFormat;
-    private pipeline!: GPURenderPipeline;
-
     private constructor(
         canvas: HTMLCanvasElement,
         shaderCode: string,
@@ -77,6 +77,7 @@ export class Renderer {
 
         this.canvas = canvas;
         this.shaderCode = shaderCode;
+        
         this.onInitSuccessful = onInitSuccessful;
         this.onDeviceLost = onDeviceLost;
     }
