@@ -147,7 +147,11 @@ export class Renderer {
                 entryPoint: "fs_main",
                 targets: [{ format: textureFormat }],
             },
-            primitive: { topology: "triangle-strip" },
+            primitive: {
+                topology: "triangle-strip",
+                frontFace: "cw",
+                cullMode: "back",
+            },
             layout: pipelineLayout,
         });
     }
@@ -160,7 +164,7 @@ export class Renderer {
             colorAttachments: [
                 {
                     view: view,
-                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+                    clearValue: { r: 0, g: 0, b: 0, a: 0 },
                     loadOp: "clear",
                     storeOp: "store"
                 }
