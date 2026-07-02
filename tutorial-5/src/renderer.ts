@@ -66,7 +66,7 @@ export class Renderer {
         this.textureFormat = navigator.gpu.getPreferredCanvasFormat();
         this.context.configure({
             device: this.device,
-            format: this.textureFormat
+            format: this.textureFormat,
         });
 
         const shaderModule = this.createShaderModule(this.shaderCode);
@@ -109,7 +109,7 @@ export class Renderer {
 
         this.context.configure({
             device: this.device,
-            format: this.textureFormat
+            format: this.textureFormat,
         });
     }
 
@@ -117,7 +117,7 @@ export class Renderer {
         const vertexBuffer = this.device.createBuffer({
             size: vertices.length * Renderer.VERTEX_SIZE,
             usage: GPUBufferUsage.VERTEX,
-            mappedAtCreation: true
+            mappedAtCreation: true,
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
@@ -156,7 +156,7 @@ export class Renderer {
         const lTexture = this.device.createTexture({
             size: [bitmap.width, bitmap.height, 1],
             format: "rgba8unorm",
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
         });
         this.device.queue.copyExternalImageToTexture(
             { source: bitmap },
@@ -195,7 +195,7 @@ export class Renderer {
             stepMode: "vertex",
             attributes: [
                 { shaderLocation: 0, offset: 0, format: "float32x3" },
-                { shaderLocation: 1, offset: 3 * 4, format: "float32x2" },
+                { shaderLocation: 1, offset: 12, format: "float32x2" },
             ]
         };
 
@@ -203,7 +203,7 @@ export class Renderer {
             vertex: {
                 module: shaderModule,
                 entryPoint: "vs_main",
-                buffers: [vertexBufferLayout]
+                buffers: [vertexBufferLayout],
             },
             fragment: {
                 module: shaderModule,
@@ -212,7 +212,8 @@ export class Renderer {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: "back"
+                frontFace: "cw",
+                cullMode: "back",
             },
             layout: pipelineLayout,
         });
@@ -242,7 +243,7 @@ export class Renderer {
                     view: view,
                     clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
                     loadOp: "clear",
-                    storeOp: "store"
+                    storeOp: "store",
                 }
             ]
         });
