@@ -154,7 +154,7 @@ export class Renderer {
                 {
                     shaderLocation: 0,
                     offset: 0,
-                    format: "float32x3"
+                    format: "float32x3",
                 }
             ]
         };
@@ -163,14 +163,18 @@ export class Renderer {
             vertex: {
                 module: shaderModule,
                 entryPoint: "vs_main",
-                buffers: [vertexBufferLayout]
+                buffers: [vertexBufferLayout],
             },
             fragment: {
                 module: shaderModule,
                 entryPoint: "fs_main",
                 targets: [{ format: textureFormat }],
             },
-            primitive: { topology: "triangle-list" },
+            primitive: {
+                topology: "triangle-list",
+                frontFace: "cw",
+                cullMode: "back",
+            },
             layout: pipelineLayout,
         });
     }
@@ -183,9 +187,9 @@ export class Renderer {
             colorAttachments: [
                 {
                     view: view,
-                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
+                    clearValue: { r: 0, g: 0, b: 0, a: 0 },
                     loadOp: "clear",
-                    storeOp: "store"
+                    storeOp: "store",
                 }
             ]
         });

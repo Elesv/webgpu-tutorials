@@ -147,7 +147,11 @@ export class Renderer {
                 entryPoint: "fs_main",
                 targets: [{ format: textureFormat }],
             },
-            primitive: { topology: "triangle-list" },
+            primitive: {
+                topology: "triangle-list",
+                frontFace: "cw",
+                cullMode: "back"
+            },
             layout: pipelineLayout,
         });
     }
