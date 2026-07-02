@@ -3,8 +3,8 @@ import { Geometry } from './geometry.js';
 import { Vertex } from './vertex.js';
 
 export class Renderer {
-    private static NUM_COORDS_PER_VERTEX = 3;
-    private static VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static readonly NUM_COORDS_PER_VERTEX = 3;
+    private static readonly VERTEX_SIZE = Renderer.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     private shaderCode: string;
     private canvas: HTMLCanvasElement;
@@ -180,7 +180,7 @@ export class Renderer {
     }
 
     renderGeometry(geometry: Geometry) {
-        if(geometry.vertexBuffer === null) {
+        if (geometry.vertexBuffer === null) {
             this.uploadGeometry(geometry);
         }
         this.device.queue.submit([this.createCommandBuffer(geometry.vertexBuffer!)]);
