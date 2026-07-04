@@ -1,10 +1,8 @@
-import { Face } from "./face.js";
-import { SkyboxVertex } from "./skybox-vertex.js";
 import { Texture } from "./texture.js";
 
 export class Skybox {
-    vertices: SkyboxVertex[]
-    faces: Face[];
+    vertices: Float32Array;
+    faces: Uint32Array;
     texture: Texture;
 
     vertexBuffer!: GPUBuffer;
@@ -13,8 +11,8 @@ export class Skybox {
     isUploaded: boolean = false;
 
     constructor(
-        vertices: SkyboxVertex[],
-        faces: Face[],
+        vertices: Float32Array,
+        faces: Uint32Array,
         texture: Texture
     ) {
         this.vertices = vertices;

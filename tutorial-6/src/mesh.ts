@@ -1,11 +1,9 @@
-import { Face } from "./face.js";
 import { Matrix4 } from "./math/matrix4.js";
-import { MeshVertex } from "./mesh-vertex.js";
 import { Texture } from "./texture.js";
 
 export class Mesh {
-    vertices: MeshVertex[];
-    faces: Face[];
+    vertices: Float32Array;
+    faces: Uint32Array;
     texture: Texture;
     world: Matrix4 = Matrix4.identity();
 
@@ -15,8 +13,8 @@ export class Mesh {
     isUploaded: boolean = false;
 
     constructor(
-        vertices: MeshVertex[],
-        faces: Face[],
+        vertices: Float32Array,
+        faces: Uint32Array,
         texture: Texture
     ) {
         this.vertices = vertices;

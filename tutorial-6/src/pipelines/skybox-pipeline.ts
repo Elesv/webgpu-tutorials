@@ -1,4 +1,4 @@
-import { AssetLoader } from "../asset-loader.js";
+import { AssetLoader } from "../assets/asset-loader.js";
 import { Skybox } from "../skybox.js";
 
 export class SkyboxPipeline {
@@ -7,7 +7,7 @@ export class SkyboxPipeline {
     pipeline!: GPURenderPipeline;
 
     static async create() {
-        const shaderCode = await AssetLoader.loadShader("shaders/skybox.wgsl");
+        const shaderCode = await AssetLoader.loadText("shaders/skybox.wgsl");
         return new SkyboxPipeline(shaderCode);
     }
 
@@ -86,16 +86,5 @@ export class SkyboxPipeline {
             },
             layout: pipelineLayout,
         });
-    }
-
-    render(
-        pass: GPURenderPassEncoder,
-        skybox: Skybox
-    ) {
-        pass.setPipeline(this.pipeline);
-        pass.setVertexBuffer(0, skybox.vertexBuffer);
-        pass.setIndexBuffer(skybox.indexBuffer, "uint32");
-        pass.setBindGroup(0, skybox.bindGroup);
-        pass.drawIndexed(SkyboxPipeline.NUM_INDICES);
     }
 }

@@ -1,4 +1,5 @@
-import { AssetLoader } from "./asset-loader.js";
+import { AssetLibrary } from "./assets/asset-library.js";
+import { AssetLoader } from "./assets/asset-loader.js";
 import { CameraController } from "./camera-controller.js";
 import { Camera } from "./camera.js";
 import { Quaternion } from "./math/quaternion.js";
@@ -12,10 +13,84 @@ export class App {
     private renderer!: Renderer;
     private skybox!: Skybox;
     private mesh!: Mesh;
-    private camera: Camera = new Camera(new Vector3(0,0,-10), Quaternion.identity());
+    private camera: Camera = new Camera(new Vector3(0, 0, -10), Quaternion.identity());
     private cameraController!: CameraController;
+    private assetLibrary!: AssetLibrary;
+
+    private async loadAssets() {
+        await this.assetLibrary.loadShader(
+            "shaders/mesh.wgsl",
+            "mesh-shader",
+            "vs_main",
+            "fs_main",
+            [{
+                entries: [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        sampler: { type: "filtering" },
+                    },
+                    {
+                        binding: 1,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        texture: { sampleType: "float" },
+                    },
+                    {
+                        binding: 2,
+                        visibility: GPUShaderStage.VERTEX,
+                        buffer: { type: "uniform" },
+                    }
+                ],
+            }], [{
+                arrayStride: 20,
+                stepMode: "vertex",
+                attributes: [
+                    { shaderLocation: 0, offset: 0, format: "float32x3" },
+                    { shaderLocation: 1, offset: 12, format: "float32x2" },
+                ]
+            }]);
+
+        await this.assetLibrary.loadShader(
+            "shaders/mesh.wgsl",
+            "mesh-shader",
+            "vs_main",
+            "fs_main",
+            [{
+                entries: [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        sampler: {
+                            type: "filtering",
+                        }
+                    },
+                    {
+                        binding: 1,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        texture: {
+                            sampleType: "float",
+                            viewDimension: "cube",
+                        }
+                    },
+                    {
+                        binding: 2,
+                        visibility: GPUShaderStage.VERTEX,
+                        buffer: { type: "uniform" },
+                    },
+                ]
+            }], [{
+                arrayStride: 12,
+                stepMode: "vertex",
+                attributes: [
+                    { shaderLocation: 0, offset: 0, format: "float32x3" },
+                ],
+            }]);
+    }
 
     async Run(canvas: HTMLCanvasElement) {
+        this.assetLibrary = new AssetLibrary();
+        this.loadAssets();
+
         this.skybox = await AssetLoader.loadSkybox(
             "assets/models/skybox.json",
             "assets/textures/cubemap.png");
@@ -25,7 +100,7 @@ export class App {
             "assets/textures/texture.png");
 
         this.cameraController = new CameraController(canvas, this.camera);
-            
+
         try {
             this.renderer = await Renderer.create(
                 canvas,
@@ -45,7 +120,7 @@ export class App {
 
     private frame = (time: number) => {
         try {
-            this.renderer.renderMesh(this.skybox, this.mesh, this.camera);
+            this.renderer.render(this.skybox, this.mesh, this.camera);
         } catch (error) {
             console.error("Failed to render mesh:", error);
         }

@@ -1,15 +1,14 @@
-import { AssetLoader } from "../asset-loader.js";
-import { Mesh } from "../mesh.js";
+import { AssetLoader } from "../assets/asset-loader.js";
 
 export class MeshPipeline {
-    private static NUMBER_OF_COORDINATES_PER_VERTEX = 5;
-    private static SIZE_OF_VERTEX = MeshPipeline.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static NUM_COORDS_PER_VERTEX = 5;
+    private static VERTEX_SIZE = MeshPipeline.NUM_COORDS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     private shaderCode: string;
     pipeline!: GPURenderPipeline;
 
     static async create() {
-        const shaderCode = await AssetLoader.loadShader("shaders/mesh.wgsl");
+        const shaderCode = await AssetLoader.loadText("shaders/mesh.wgsl");
         return new MeshPipeline(shaderCode);
     }
 
@@ -51,11 +50,11 @@ export class MeshPipeline {
 
         const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
         const vertexBufferLayout: GPUVertexBufferLayout = {
-            arrayStride: MeshPipeline.SIZE_OF_VERTEX,
+            arrayStride: MeshPipeline.VERTEX_SIZE,
             stepMode: "vertex",
             attributes: [
                 { shaderLocation: 0, offset: 0, format: "float32x3" },
-                { shaderLocation: 1, offset: 3 * 4, format: "float32x2" },
+                { shaderLocation: 1, offset: 12, format: "float32x2" },
             ]
         };
 
@@ -82,17 +81,5 @@ export class MeshPipeline {
             },
             layout: pipelineLayout,
         });
-    }
-
-    render(
-        pass: GPURenderPassEncoder,
-        mesh: Mesh
-    ) {
-        pass.setPipeline(this.pipeline);
-        pass.setVertexBuffer(0, mesh.vertexBuffer);
-        pass.setIndexBuffer(mesh.indexBuffer, "uint32");
-        pass.setBindGroup(0, mesh.bindGroup);
-        //pass.drawIndexed(mesh.faces.length * 3);
-        pass.drawIndexed(mesh.indexBuffer.size / Uint32Array.BYTES_PER_ELEMENT);
     }
 }

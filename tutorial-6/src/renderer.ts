@@ -12,13 +12,24 @@ import { SkyboxVertex } from "./skybox-vertex.js";
 
 export class Renderer {
     private static NUMBER_OF_COORDINATES_PER_VERTEX = 5;
-    private static SIZE_OF_VERTEX = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
+    private static VERTEX_SIZE = Renderer.NUMBER_OF_COORDINATES_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
 
     private static NUMBER_OF_INDICES_PER_FACE = 3;
-    private static SIZE_OF_FACE = Renderer.NUMBER_OF_INDICES_PER_FACE * Uint32Array.BYTES_PER_ELEMENT;
+    private static FACE_SIZE = Renderer.NUMBER_OF_INDICES_PER_FACE * Uint32Array.BYTES_PER_ELEMENT;
+
+    private canvas: HTMLCanvasElement;
+    private context!: GPUCanvasContext;
+    private device!: GPUDevice;
+    private textureFormat!: GPUTextureFormat;
+    private depthTexture!: GPUTexture;
+    private meshUniformBuffer!: GPUBuffer;
+    private skyboxUniformBuffer!: GPUBuffer;
 
     private skyboxPipeline!: SkyboxPipeline;
     private meshPipeline!: MeshPipeline;
+
+    private onInitSuccessful: () => void;
+    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
 
     static async create(
         canvas: HTMLCanvasElement,
@@ -79,18 +90,6 @@ export class Renderer {
 
         this.onInitSuccessful();
     }
-
-    private onInitSuccessful: () => void;
-    private onDeviceLost: (info: GPUDeviceLostInfo) => void;
-
-    private canvas: HTMLCanvasElement;
-    private context!: GPUCanvasContext;
-    private device!: GPUDevice;
-    private textureFormat!: GPUTextureFormat;
-    private depthTexture!: GPUTexture;
-
-    private meshUniformBuffer!: GPUBuffer;
-    private skyboxUniformBuffer!: GPUBuffer;
 
     private constructor(
         canvas: HTMLCanvasElement,
@@ -198,61 +197,43 @@ export class Renderer {
         return uniformBuffer;
     }
 
-    private createMeshVertexBuffer(vertices: MeshVertex[]): GPUBuffer {
+    private createMeshVertexBuffer(vertices: Float32Array): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
-            size: vertices.length * Renderer.SIZE_OF_VERTEX,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            size: vertices.byteLength,
+            usage: GPUBufferUsage.VERTEX,
             mappedAtCreation: true
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
-        for (let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 0] = vertices[i].x;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 1] = vertices[i].y;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 2] = vertices[i].z;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 3] = vertices[i].u;
-            vertexBufferPtr[i * Renderer.NUMBER_OF_COORDINATES_PER_VERTEX + 4] = vertices[i].v;
-        }
+        vertexBufferPtr.set(vertices);
 
         vertexBuffer.unmap();
         return vertexBuffer;
     }
 
-    private createSkyboxVertexBuffer(vertices: SkyboxVertex[]): GPUBuffer {
-        const numCoordsPerVertex = 3;
-        const vertexByteSize = numCoordsPerVertex * Float32Array.BYTES_PER_ELEMENT;
-
+    private createSkyboxVertexBuffer(vertices: Float32Array): GPUBuffer {
         const vertexBuffer = this.device.createBuffer({
-            size: vertices.length * vertexByteSize,
-            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            size: vertices.byteLength,
+            usage: GPUBufferUsage.VERTEX,
             mappedAtCreation: true
         });
 
         const vertexBufferPtr = new Float32Array(vertexBuffer.getMappedRange());
-        for (let i = 0; i < vertices.length; ++i) {
-            vertexBufferPtr[i * numCoordsPerVertex + 0] = vertices[i].x;
-            vertexBufferPtr[i * numCoordsPerVertex + 1] = vertices[i].y;
-            vertexBufferPtr[i * numCoordsPerVertex + 2] = vertices[i].z;
-        }
+        vertexBufferPtr.set(vertices);
 
         vertexBuffer.unmap();
         return vertexBuffer;
     }
 
-    private createIndexBuffer(faces: Face[]): GPUBuffer {
+    private createIndexBuffer(faces: Uint32Array): GPUBuffer {
         const indexBuffer = this.device.createBuffer({
-            size: faces.length * Renderer.SIZE_OF_FACE,
-            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            size: faces.byteLength,
+            usage: GPUBufferUsage.INDEX,
             mappedAtCreation: true
         });
 
         const indexBufferPtr = new Uint32Array(indexBuffer.getMappedRange());
-        for (let i = 0; i < faces.length; ++i) {
-            const face = faces[i];
-            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 0] = face.a;
-            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 1] = face.b;
-            indexBufferPtr[i * Renderer.NUMBER_OF_INDICES_PER_FACE + 2] = face.c;
-        }
+        indexBufferPtr.set(faces);
 
         indexBuffer.unmap();
         return indexBuffer;
@@ -323,10 +304,6 @@ export class Renderer {
 
     private createMeshBindGroup(texture: Texture): GPUBindGroup {
         const sampler = this.device.createSampler({
-            addressModeU: "repeat",
-            addressModeV: "repeat",
-            addressModeW: "repeat",
-
             magFilter: "linear",
             minFilter: "linear",
             mipmapFilter: "linear"
@@ -372,21 +349,21 @@ export class Renderer {
             colorAttachments: [
                 {
                     view: view,
-                    clearValue: { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
+                    clearValue: { r: 0, g: 0, b: 0, a: 0 },
                     loadOp: "clear",
                     storeOp: "store"
                 }
             ],
             depthStencilAttachment: {
                 view: this.depthTexture.createView(),
-                depthClearValue: 1.0,
+                depthClearValue: 1,
                 depthLoadOp: 'clear',
                 depthStoreOp: 'store',
             },
         });
 
-        this.skyboxPipeline.render(pass, skybox);
-        this.meshPipeline.render(pass, mesh);
+        this.renderSkybox(pass, skybox);
+        this.renderMesh(pass, mesh);
         pass.end();
 
         return commandEncoder.finish();
@@ -408,7 +385,7 @@ export class Renderer {
         skybox.isUploaded = true;
     }
 
-    renderMesh(skybox: Skybox, mesh: Mesh, camera: Camera) {
+    render(skybox: Skybox, mesh: Mesh, camera: Camera) {
         if (!skybox.isUploaded) {
             this.uploadSkybox(skybox);
         }
@@ -449,5 +426,21 @@ export class Renderer {
         );
 
         this.device.queue.submit([this.createCommandBuffer(skybox, mesh)]);
+    }
+
+    renderMesh(pass: GPURenderPassEncoder, mesh: Mesh) {
+        pass.setPipeline(this.meshPipeline.pipeline);
+        pass.setVertexBuffer(0, mesh.vertexBuffer);
+        pass.setIndexBuffer(mesh.indexBuffer, "uint32");
+        pass.setBindGroup(0, mesh.bindGroup);
+        pass.drawIndexed(mesh.indexBuffer.size / Uint32Array.BYTES_PER_ELEMENT);
+    }
+
+    renderSkybox(pass: GPURenderPassEncoder, skybox: Skybox) {
+        pass.setPipeline(this.skyboxPipeline.pipeline);
+        pass.setVertexBuffer(0, skybox.vertexBuffer);
+        pass.setIndexBuffer(skybox.indexBuffer, "uint32");
+        pass.setBindGroup(0, skybox.bindGroup);
+        pass.drawIndexed(skybox.indexBuffer.size / Uint32Array.BYTES_PER_ELEMENT);
     }
 }
